@@ -3,7 +3,7 @@
 // ============================================================
 
 // --- User & Auth ---
-export type UserRole = 'visitor' | 'booking_office' | 'manager' | 'super_admin';
+export type UserRole = 'booking_office' | 'manager' | 'super_admin';
 
 export interface User {
   id: string;

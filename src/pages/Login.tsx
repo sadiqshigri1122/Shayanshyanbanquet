@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Building2, Eye, EyeOff, Lock, Mail, ArrowRight, ShieldCheck } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { dashboardPathForRole } from '../utils/authUtils';
@@ -212,12 +212,6 @@ export default function Login() {
             </div>
           </div>
 
-          <p className="mt-4 text-center text-sm text-muted">
-            Looking to book an event?{' '}
-            <Link to="/" className="text-secondary font-semibold hover:text-primary">
-              Visit our public site
-            </Link>
-          </p>
         </div>
       </div>
     </div>

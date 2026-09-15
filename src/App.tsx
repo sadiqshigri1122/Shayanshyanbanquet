@@ -2,19 +2,9 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider } from './context/AppContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import ApiStatusBanner from './components/ApiStatusBanner';
-import Layout from './components/Layout';
 import DashboardLayout from './components/DashboardLayout';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
-
-// Visitor
-import VisitorHome from './pages/Visitor/Home';
-import Venues from './pages/Visitor/Venues';
-import Packages from './pages/Visitor/Packages';
-import Gallery from './pages/Visitor/Gallery';
-import Contact from './pages/Visitor/Contact';
-import Inquiry from './pages/Visitor/Inquiry';
-import BookingStatus from './pages/Visitor/BookingStatus';
 
 // Office
 import OfficeDashboard from './pages/Office/Dashboard';
@@ -50,18 +40,7 @@ function App() {
         <ApiStatusBanner />
         <Routes>
           <Route path="/login" element={<Login />} />
-
-          {/* Public / Visitor */}
-          <Route path="/" element={<Layout />}>
-            <Route index element={<VisitorHome />} />
-            <Route path="venues" element={<Venues />} />
-            <Route path="packages" element={<Packages />} />
-            <Route path="gallery" element={<Gallery />} />
-            <Route path="contact" element={<Contact />} />
-            <Route path="inquiry" element={<Inquiry />} />
-            <Route path="book-now" element={<Inquiry />} />
-            <Route path="booking-status" element={<BookingStatus />} />
-          </Route>
+          <Route path="/" element={<Navigate to="/login" replace />} />
 
           {/* Staff dashboards — role-guarded */}
           <Route element={<ProtectedRoute dashboard="office" />}>
@@ -105,7 +84,7 @@ function App() {
             </Route>
           </Route>
 
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
         </BrowserRouter>
       </AppProvider>

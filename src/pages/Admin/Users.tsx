@@ -4,7 +4,6 @@ const roleLabels: Record<string, string> = {
   booking_office: 'Booking Office',
   manager: 'Manager',
   super_admin: 'Super Admin',
-  visitor: 'Visitor',
 };
 
 export default function AdminUsers() {

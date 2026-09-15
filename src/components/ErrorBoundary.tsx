@@ -31,7 +31,7 @@ export default class ErrorBoundary extends Component<Props, State> {
             {this.state.error.message}
           </pre>
           <p style={{ marginTop: 16 }}>
-            <a href="/" style={{ color: '#3282B8' }}>Go to home</a>
+            <a href="/login" style={{ color: '#3282B8' }}>Go to login</a>
             {' · '}
             <a href="http://localhost:5173" style={{ color: '#3282B8' }}>Open frontend (5173)</a>
           </p>

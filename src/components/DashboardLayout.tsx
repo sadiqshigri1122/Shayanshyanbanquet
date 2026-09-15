@@ -219,10 +219,6 @@ export default function DashboardLayout({ role }: Props) {
               )}
             </div>
 
-            <Link to="/" className="p-2 rounded hover:bg-surface-alt text-muted text-xs font-medium hidden md:block">
-              Public Site
-            </Link>
-
             <button
               type="button"
               onClick={() => {
