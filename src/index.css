@@ -1,0 +1,624 @@
+@import "tailwindcss";
+
+@theme {
+  /* Primary — Deep Navy Blue */
+  --color-primary: #0F4C75;
+  --color-primary-hover: #0A3555;
+  --color-primary-light: #1A5A8F;
+  --color-primary-dark: #0A3555;
+
+  /* Secondary — Medium Blue (replaces gold accent) */
+  --color-secondary: #3282B8;
+  --color-secondary-hover: #2770A3;
+  --color-secondary-light: #E8F4FC;
+
+  /* Legacy alias — maps old gold classes to secondary blue */
+  --color-gold: #3282B8;
+  --color-gold-dark: #2770A3;
+  --color-gold-light: #E8F4FC;
+
+  /* Backgrounds */
+  --color-bg-primary: #FFFFFF;
+  --color-bg-secondary: #F8F9FA;
+  --color-bg-tertiary: #F0F2F5;
+  --color-text-primary: #1A1A1A;
+  --color-text-secondary: #666666;
+  --color-text-tertiary: #999999;
+
+  /* Borders */
+  --color-border: #E0E0E0;
+  --color-border-dark: #D0D0D0;
+
+  /* Accent / State */
+  --color-success: #28A745;
+  --color-success-light: #E8F5E9;
+  --color-warning: #FFC107;
+  --color-warning-light: #FFF8E1;
+  --color-danger: #DC3545;
+  --color-danger-light: #FDEDED;
+  --color-info: #17A2B8;
+  --color-info-light: #E8F6F8;
+
+  /* Typography — enterprise system stack */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif, 'Apple Color Emoji';
+}
+
+/* CSS custom properties for non-Tailwind use */
+:root {
+  --color-primary: #0F4C75;
+  --color-primary-hover: #0A3555;
+  --color-primary-light: #1A5A8F;
+  --color-secondary: #3282B8;
+  --color-secondary-hover: #2770A3;
+  --color-bg-primary: #FFFFFF;
+  --color-bg-secondary: #F8F9FA;
+  --color-bg-tertiary: #F0F2F5;
+  --color-text-primary: #1A1A1A;
+  --color-text-secondary: #666666;
+  --color-text-tertiary: #999999;
+  --color-border: #E0E0E0;
+  --color-border-dark: #D0D0D0;
+  --color-success: #28A745;
+  --color-warning: #FFC107;
+  --color-danger: #DC3545;
+  --color-info: #17A2B8;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.1);
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  html, body, #root {
+    min-height: 100%;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--color-bg-secondary);
+    color: var(--color-text-primary);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--color-text-primary);
+  }
+
+  h2 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    line-height: 1.3;
+    color: var(--color-text-primary);
+  }
+
+  h3 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--color-text-primary);
+  }
+
+  h4 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    line-height: 1.4;
+    color: var(--color-text-primary);
+  }
+
+  a {
+    color: var(--color-primary);
+    text-decoration: none;
+    transition: color 0.2s ease;
+  }
+
+  a:hover {
+    color: var(--color-primary-hover);
+  }
+
+  input,
+  textarea,
+  select {
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 14px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  input:focus,
+  textarea:focus,
+  select:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(15, 76, 117, 0.1);
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-text-tertiary);
+  }
+}
+
+@layer components {
+  .btn-primary {
+    background-color: var(--color-primary);
+    color: #ffffff;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+  }
+
+  .btn-primary:hover {
+    background-color: var(--color-primary-hover);
+  }
+
+  .btn-primary:active {
+    transform: scale(0.98);
+  }
+
+  .btn-secondary {
+    background-color: var(--color-secondary);
+    color: #ffffff;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+  }
+
+  .btn-secondary:hover {
+    background-color: var(--color-secondary-hover);
+  }
+
+  .card {
+    background-color: var(--color-bg-primary);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.2s ease;
+  }
+
+  .card:hover {
+    box-shadow: var(--shadow-md);
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 4px 12px;
+    background-color: var(--color-bg-secondary);
+    color: var(--color-text-primary);
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .badge-primary {
+    background-color: var(--color-primary);
+    color: #ffffff;
+  }
+}
+
+@layer utilities {
+  .gradient-primary {
+    background: linear-gradient(135deg, #0F4C75 0%, #1A5A8F 100%);
+  }
+
+  .gradient-secondary {
+    background: linear-gradient(135deg, #3282B8 0%, #2770A3 100%);
+  }
+
+  .text-gradient-accent {
+    background: linear-gradient(135deg, #3282B8, #5BA3D0);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .shadow-premium {
+    box-shadow: var(--shadow-md);
+  }
+
+  .shadow-card {
+    box-shadow: var(--shadow-sm);
+  }
+
+  .text-muted {
+    color: var(--color-text-secondary);
+  }
+
+  .border-default {
+    border-color: var(--color-border);
+  }
+
+  .bg-surface {
+    background-color: var(--color-bg-primary);
+  }
+
+  .bg-surface-alt {
+    background-color: var(--color-bg-secondary);
+  }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-bg-secondary);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-dark);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-tertiary);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.35s ease-out forwards;
+}
+
+/* Banquet daily report — matches Excel template layout */
+.banquet-report {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  font-size: 11px;
+  color: #111;
+  max-width: 100%;
+}
+
+.report-page {
+  background: white;
+  padding: 16px;
+}
+
+.report-page--landscape {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.report-page--portrait {
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.report-header {
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.report-header h1 {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  margin: 0 0 4px;
+}
+
+.report-meta {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  font-size: 11px;
+}
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 10px;
+}
+
+.report-table th,
+.report-table td {
+  border: 1px solid #333;
+  padding: 3px 6px;
+  text-align: left;
+}
+
+.report-table th {
+  background: #f0f0f0;
+  font-weight: 600;
+  font-size: 10px;
+}
+
+.report-section-title {
+  text-align: center;
+  background: #e8e8e8 !important;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+}
+
+.report-section-subtitle {
+  text-align: center;
+  background: #f5f5f5 !important;
+  font-size: 9px;
+  font-weight: 400;
+  font-style: italic;
+  color: #555;
+}
+
+.report-section-note {
+  font-size: 10px;
+  color: #444;
+  margin: 8px 0 4px;
+}
+
+.report-empty-section {
+  font-size: 11px;
+  color: #666;
+  text-align: center;
+  padding: 16px;
+  border: 1px dashed #ccc;
+  border-radius: 4px;
+  margin: 8px 0;
+}
+
+.report-group-header {
+  background: #e8e8e8 !important;
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 4px 6px !important;
+}
+
+.report-hall-grid--single {
+  grid-template-columns: 1fr;
+  max-width: 360px;
+}
+
+.report-table .subtotal-row td {
+  font-weight: 600;
+  background: #f8f8f8;
+}
+
+.report-table .spacer-row {
+  border: none !important;
+  height: 6px;
+  padding: 0;
+}
+
+.report-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.report-table .center {
+  text-align: center;
+}
+
+.report-table .total-row td {
+  font-weight: 700;
+  background: #fafafa;
+}
+
+.report-table--compact {
+  width: 100%;
+}
+
+.report-hall-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.report-remarks {
+  border: 1px solid #333;
+  padding: 6px 8px;
+  min-height: 48px;
+  font-size: 10px;
+}
+
+.report-remarks p {
+  margin: 4px 0 0;
+}
+
+.report-table--cash td:first-child {
+  width: 70%;
+}
+
+.report-table--cash .label {
+  font-weight: 600;
+}
+
+.closing-row td {
+  font-weight: 700;
+  font-size: 12px;
+  background: #f5f5f5;
+}
+
+.report-signatures {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 32px;
+  font-size: 11px;
+}
+
+@media print {
+  /* ── Hide app chrome (sidebar, header, nav, banners, controls) ── */
+  .no-print,
+  .app-chrome {
+    display: none !important;
+  }
+
+  html,
+  body {
+    background: white !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  #root {
+    min-height: 0 !important;
+  }
+
+  /* Dashboard / public layout — full-width content */
+  .dashboard-main,
+  .public-main {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: none !important;
+    width: 100% !important;
+    overflow: visible !important;
+  }
+
+  .dashboard-shell {
+    display: block !important;
+    min-height: 0 !important;
+    background: white !important;
+  }
+
+  /* Cards & containers — clean document look */
+  .card {
+    box-shadow: none !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .print-document .card {
+    border: 1px solid #ccc !important;
+    border-radius: 0 !important;
+    margin-bottom: 12px;
+  }
+
+  /* Isolated documents (booking slip, receipt) */
+  body.printing-document * {
+    visibility: hidden;
+  }
+
+  body.printing-document #print-area,
+  body.printing-document #print-area *,
+  body.printing-document #banquet-report,
+  body.printing-document #banquet-report *,
+  body.printing-document #event-day-report,
+  body.printing-document #event-day-report * {
+    visibility: visible;
+  }
+
+  body.printing-document #print-area,
+  body.printing-document #banquet-report,
+  body.printing-document #event-day-report {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Modal — show document only, no overlay chrome */
+  .modal-overlay {
+    position: static !important;
+    inset: auto !important;
+    background: transparent !important;
+    padding: 0 !important;
+    display: block !important;
+    z-index: auto !important;
+  }
+
+  .modal-panel {
+    box-shadow: none !important;
+    max-height: none !important;
+    max-width: none !important;
+    overflow: visible !important;
+    border-radius: 0 !important;
+    width: 100% !important;
+  }
+
+  .modal-body {
+    padding: 0 !important;
+  }
+
+  /* Report & slip documents */
+  #print-area,
+  #banquet-report,
+  .banquet-report {
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  .print-document-header {
+    text-align: center;
+    border-bottom: 2px solid #333;
+    padding-bottom: 12px;
+    margin-bottom: 16px;
+  }
+
+  .print-document-header h1 {
+    font-size: 18px;
+    font-weight: 700;
+    color: #111;
+    margin: 0 0 4px;
+  }
+
+  .print-document-header p {
+    font-size: 11px;
+    color: #444;
+    margin: 2px 0;
+  }
+
+  .print-document-footer {
+    margin-top: 24px;
+    padding-top: 8px;
+    border-top: 1px solid #ccc;
+    font-size: 9px;
+    color: #666;
+    text-align: center;
+  }
+
+  .report-page-break {
+    break-before: page;
+    page-break-before: always;
+  }
+
+  .report-page-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+  }
+
+  /* Suppress link URLs in print output */
+  a[href]::after {
+    content: none !important;
+  }
+
+  @page {
+    margin: 12mm;
+    @bottom-center {
+      content: counter(page) " / " counter(pages);
+      font-size: 8pt;
+      color: #888;
+    }
+  }
+}

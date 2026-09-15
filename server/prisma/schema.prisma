@@ -1,0 +1,208 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id
+  name      String
+  email     String   @unique
+  role      String
+  phone     String?
+  isActive  Boolean  @default(true)
+  createdAt String
+}
+
+model Customer {
+  id                String    @id
+  name              String
+  fatherHusbandName String?
+  cnic              String?
+  phone             String
+  whatsapp          String?
+  address           String
+  email             String?
+  notes             String?
+  createdAt         String
+  bookings          Booking[]
+}
+
+model Venue {
+  id          String @id
+  name        String
+  type        String
+  capacity    Int
+  location    String
+  description String
+  basePrice   Int
+  status      String
+  imageUrl    String
+  hallGroup   String
+}
+
+model Service {
+  id          String @id
+  name        String
+  unit        String
+  price       Int
+  tax         Int?
+  isActive    Boolean @default(true)
+  description String?
+  category    String
+}
+
+model Booking {
+  id                  String           @id
+  bookingNumber       String           @unique
+  serialNumber        Int              @unique
+  bookingDate         String
+  customerId          String
+  customer            Customer         @relation(fields: [customerId], references: [id])
+  venueId             String
+  venueName           String
+  functionDate        String
+  functionDay         String
+  programme           String
+  numberOfGuests      Int
+  specialInstructions String?
+  internalNotes       String?
+  subtotal            Int
+  discount            Int
+  taxAmount           Int              @default(0)
+  grandTotal          Int
+  advancePaid         Int              @default(0)
+  remainingBalance    Int
+  status              String
+  paymentStatus       String
+  createdBy           String
+  lastUpdatedBy       String?
+  createdAt           String
+  updatedAt           String
+  lineItems           BookingLineItem[]
+  payments            PaymentRecord[]
+  receipts            ReceiptRecord[]
+  eventExpenses       EventExpenseRecord[]
+}
+
+model BookingLineItem {
+  id                 String  @id @default(cuid())
+  bookingId          String
+  booking            Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  serviceId          String
+  serviceName        String
+  guestCount         Int?
+  quantity           Int
+  unitPrice          Int
+  total              Int
+  enteredBy          String?
+  enteredAt          String?
+  isEventDayAddition Boolean @default(false)
+}
+
+model PaymentRecord {
+  id             String  @id
+  bookingId      String
+  booking        Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  bookingNumber  String
+  amount         Int
+  method         String
+  paymentDate    String
+  receivedBy     String
+  transactionRef String?
+  notes          String?
+  customerName   String
+}
+
+model ReceiptRecord {
+  id              String  @id
+  receiptNumber   String  @unique
+  bookingId       String
+  booking         Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  bookingNumber   String
+  customerName    String
+  functionDate    String
+  venueName       String
+  amount          Int
+  previousBalance Int
+  newBalance      Int
+  method          String
+  paymentDate     String
+  receivedBy      String
+  createdAt       String
+}
+
+model ExpenseRecord {
+  id             String @id
+  category       String
+  amount         Int
+  date           String
+  description    String
+  method         String
+  addedBy        String
+  approvalStatus String
+}
+
+model EventExpenseRecord {
+  id          String  @id
+  bookingId   String
+  booking     Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  category    String
+  amount      Int
+  description String?
+  addedBy     String
+  addedAt     String
+  updatedAt   String?
+}
+
+model ApprovalRecord {
+  id            String  @id
+  entityType    String
+  entityId      String
+  requestType   String
+  requestedBy   String
+  status        String
+  reason        String
+  decisionNotes String?
+  approvedBy    String?
+  approvedAt    String?
+  createdAt     String
+  details       String
+}
+
+model NotificationRecord {
+  id        String  @id
+  title     String
+  message   String
+  type      String
+  isRead    Boolean @default(false)
+  createdAt String
+  link      String?
+}
+
+model AuditLogRecord {
+  id          String  @id
+  action      String
+  entity      String
+  entityId    String
+  performedBy String
+  details     String
+  timestamp   String
+  oldValue    String?
+  newValue    String?
+  reason      String?
+}
+
+model SystemSettingsRecord {
+  id                              Int    @id @default(1)
+  discountApprovalThresholdPercent Int
+  blockingStatusesJson            String
+  companyName                     String
+  companyPhone                    String
+  companyEmail                    String
+  companyAddress                  String
+  termsAndConditions              String
+}
