@@ -9,6 +9,7 @@ import {
 import { useApp } from '../context/AppContext';
 import { DashboardProvider } from '../context/DashboardContext';
 import { resolveStaffLink, staffPath, type DashboardRole } from '../utils/staffRoutes';
+import DashboardLoading from './DashboardLoading';
 import HeaderSearch from './HeaderSearch';
 
 const navByRole: Record<DashboardRole, { label: string; icon: typeof LayoutDashboard; path: string }[]> = {
@@ -51,7 +52,17 @@ interface Props {
 }
 
 export default function DashboardLayout({ role }: Props) {
-  const { notifications, currentUser, users, setCurrentUser, markAllNotificationsRead, markNotificationRead, logout } = useApp();
+  const {
+    notifications,
+    currentUser,
+    users,
+    bookings,
+    apiLoading,
+    setCurrentUser,
+    markAllNotificationsRead,
+    markNotificationRead,
+    logout,
+  } = useApp();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -261,7 +272,7 @@ export default function DashboardLayout({ role }: Props) {
 
         <main className="dashboard-main flex-1 p-4 lg:p-6 overflow-y-auto max-w-[1400px] w-full mx-auto print:p-0">
           <DashboardProvider dashboard={role}>
-            <Outlet />
+            {apiLoading && bookings.length === 0 ? <DashboardLoading /> : <Outlet />}
           </DashboardProvider>
         </main>
       </div>

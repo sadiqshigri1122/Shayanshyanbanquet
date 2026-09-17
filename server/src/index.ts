@@ -1,3 +1,4 @@
+import compression from 'compression';
 import cors from 'cors';
 import express from 'express';
 import { apiRouter } from './routes/api.js';
@@ -13,6 +14,7 @@ const allowedOrigins = (process.env.CORS_ORIGINS ?? 'http://localhost:5173,http:
   .filter(Boolean);
 
 app.set('trust proxy', 1);
+app.use(compression());
 app.use(
   cors({
     origin(origin, callback) {

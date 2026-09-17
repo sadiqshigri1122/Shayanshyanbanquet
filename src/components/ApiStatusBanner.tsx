@@ -15,8 +15,9 @@ export default function ApiStatusBanner() {
 
   if (apiLoading) {
     return (
-      <div className="no-print bg-info/10 border-b border-info/20 text-info text-sm px-4 py-2 text-center">
-        Loading data from server…
+      <div className="no-print bg-info/10 border-b border-info/20 text-info text-sm px-4 py-2 text-center flex items-center justify-center gap-2">
+        <span className="inline-block h-3.5 w-3.5 rounded-full border-2 border-info/30 border-t-info animate-spin" />
+        Syncing latest data…
       </div>
     );
   }

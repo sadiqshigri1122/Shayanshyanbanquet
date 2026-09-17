@@ -4,6 +4,7 @@ import {
   useState,
   useEffect,
   useCallback,
+  useRef,
   type ReactNode,
 } from 'react';
 import type {
@@ -249,7 +250,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const users = USE_API ? defaultState.users : loadState().users;
     return users.some((u) => u.id === storedAuth.userId && u.isActive);
   });
-  const [apiLoading, setApiLoading] = useState(USE_API);
+  const [apiLoading, setApiLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
   const applyApiState = useCallback(
@@ -276,51 +277,53 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const stateFetchInFlight = useRef<Promise<void> | null>(null);
+
   const refreshFromApi = useCallback(async () => {
-    const data = await api.getState();
-    setState(applyApiState(data));
+    if (stateFetchInFlight.current) {
+      await stateFetchInFlight.current;
+      return;
+    }
+
+    const task = (async () => {
+      const data = await api.getState();
+      setState(applyApiState(data));
+    })();
+
+    stateFetchInFlight.current = task;
+    try {
+      await task;
+    } finally {
+      stateFetchInFlight.current = null;
+    }
   }, [applyApiState]);
 
   useEffect(() => {
     if (!USE_API) return;
     let cancelled = false;
     (async () => {
+      const storedAuth = loadStoredAuth();
+      if (!storedAuth?.token) return;
+
       try {
         setApiLoading(true);
         setApiError(null);
-
-        const meta = await api.getPublicMeta();
-        if (!cancelled) {
-          setState((prev) => ({
-            ...prev,
-            venues: meta.venues.length > 0 ? meta.venues : prev.venues,
-            settings: { ...prev.settings, ...meta.settings },
-          }));
+        setAuthToken(storedAuth.token);
+        await api.me();
+        if (cancelled) return;
+        setIsAuthenticated(true);
+        await refreshFromApi();
+        if (cancelled) return;
+        if (storedAuth.userId) {
+          setState((prev) => {
+            const user = prev.users.find((u) => u.id === storedAuth.userId && u.isActive);
+            return user ? { ...prev, currentUser: user } : prev;
+          });
         }
-
-        const storedAuth = loadStoredAuth();
-        if (storedAuth?.token) {
-          setAuthToken(storedAuth.token);
-          try {
-            await api.me();
-            if (!cancelled) setIsAuthenticated(true);
-            await refreshFromApi();
-            if (!cancelled && storedAuth.userId) {
-              setState((prev) => {
-                const user = prev.users.find((u) => u.id === storedAuth.userId && u.isActive);
-                return user ? { ...prev, currentUser: user } : prev;
-              });
-            }
-          } catch {
-            setAuthToken(null);
-            clearStoredAuth();
-            if (!cancelled) setIsAuthenticated(false);
-          }
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setApiError(err instanceof Error ? err.message : 'Failed to load from API');
-        }
+      } catch {
+        setAuthToken(null);
+        clearStoredAuth();
+        if (!cancelled) setIsAuthenticated(false);
       } finally {
         if (!cancelled) setApiLoading(false);
       }
@@ -332,9 +335,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!USE_API || !isAuthenticated) return;
+
     const interval = window.setInterval(() => {
-      void refreshFromApi().catch(() => {});
-    }, 2 * 60 * 1000);
+      if (document.visibilityState === 'visible') {
+        void refreshFromApi().catch(() => {});
+      }
+    }, 5 * 60 * 1000);
     return () => window.clearInterval(interval);
   }, [refreshFromApi, isAuthenticated]);
 
@@ -1039,6 +1045,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     async (email: string, password: string, remember = true) => {
       if (USE_API) {
         try {
+          setApiLoading(true);
+          setApiError(null);
           const result = await api.login({ email, password, remember });
           setAuthToken(result.token);
           saveStoredAuth({
@@ -1067,6 +1075,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
             ok: false as const,
             error: err instanceof Error ? err.message : 'Login failed',
           };
+        } finally {
+          setApiLoading(false);
         }
       }
 

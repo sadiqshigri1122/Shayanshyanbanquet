@@ -1,5 +1,4 @@
 import { prisma } from '../lib/prisma.js';
-import { processEventRemindersThrottled } from './eventReminderService.js';
 import {
   mapApproval,
   mapAuditLog,
@@ -16,9 +15,10 @@ import {
   type AppStateDto,
 } from '../lib/mappers.js';
 
-export async function getFullAppState(): Promise<AppStateDto> {
-  await processEventRemindersThrottled();
+const AUDIT_LOG_LIMIT = 250;
+const NOTIFICATION_LIMIT = 100;
 
+export async function getFullAppState(): Promise<AppStateDto> {
   const [
     bookings,
     customers,
@@ -41,8 +41,14 @@ export async function getFullAppState(): Promise<AppStateDto> {
     prisma.paymentRecord.findMany({ orderBy: { paymentDate: 'asc' } }),
     prisma.expenseRecord.findMany({ orderBy: { date: 'asc' } }),
     prisma.eventExpenseRecord.findMany({ orderBy: { addedAt: 'asc' } }),
-    prisma.notificationRecord.findMany({ orderBy: { createdAt: 'desc' } }),
-    prisma.auditLogRecord.findMany({ orderBy: { timestamp: 'desc' } }),
+    prisma.notificationRecord.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: NOTIFICATION_LIMIT,
+    }),
+    prisma.auditLogRecord.findMany({
+      orderBy: { timestamp: 'desc' },
+      take: AUDIT_LOG_LIMIT,
+    }),
     prisma.approvalRecord.findMany({ orderBy: { createdAt: 'desc' } }),
     prisma.receiptRecord.findMany({ orderBy: { createdAt: 'asc' } }),
     prisma.systemSettingsRecord.findUnique({ where: { id: 1 } }),

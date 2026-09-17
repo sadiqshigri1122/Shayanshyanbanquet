@@ -71,7 +71,14 @@ apiRouter.get(
   handle(async () => ({ ok: true, service: 'shayan-banquet-api' })),
 );
 
-apiRouter.get('/public/meta', handle(async () => getPublicMeta()));
+apiRouter.get(
+  '/public/meta',
+  (_req, res, next) => {
+    res.set('Cache-Control', 'public, max-age=300');
+    next();
+  },
+  handle(async () => getPublicMeta()),
+);
 
 apiRouter.get(
   '/public/bookings/:bookingNumber',
