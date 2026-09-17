@@ -1,5 +1,5 @@
 -- CreateTable
-CREATE TABLE "AuthSession" (
+CREATE TABLE IF NOT EXISTS "AuthSession" (
     "token" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "userName" TEXT NOT NULL,
@@ -12,7 +12,7 @@ CREATE TABLE "AuthSession" (
 );
 
 -- CreateIndex
-CREATE INDEX "AuthSession_userId_idx" ON "AuthSession"("userId");
+CREATE INDEX IF NOT EXISTS "AuthSession_userId_idx" ON "AuthSession"("userId");
 
 -- CreateIndex
-CREATE INDEX "AuthSession_expiresAt_idx" ON "AuthSession"("expiresAt");
+CREATE INDEX IF NOT EXISTS "AuthSession_expiresAt_idx" ON "AuthSession"("expiresAt");
