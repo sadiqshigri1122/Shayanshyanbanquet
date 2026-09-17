@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import { BOOKING_STATUSES, BookingStatusValidationError, LineItemValidationError } from '../lib/bookingLogic.js';
 import { actorName, requireAuth, requireOfficeRole, requireRole } from '../middleware/auth.js';
 import {
   ApiError,
@@ -53,6 +54,10 @@ function handle(handler: (req: import('express').Request) => Promise<unknown>) {
       }
       if (err instanceof z.ZodError) {
         res.status(400).json({ error: err.issues[0]?.message ?? 'Invalid request data' });
+        return;
+      }
+      if (err instanceof LineItemValidationError || err instanceof BookingStatusValidationError) {
+        res.status(400).json({ error: err.message });
         return;
       }
       console.error(err);
@@ -124,8 +129,10 @@ apiRouter.patch(
   '/bookings/:id/status',
   ...officeWrite,
   handle(async (req) => {
-    const body = z.object({ status: z.string().min(1), by: z.string().optional() }).parse(req.body);
-    return updateBookingStatus(paramId(req), body.status as never, actorName(req));
+    const body = z
+      .object({ status: z.enum(BOOKING_STATUSES), by: z.string().optional() })
+      .parse(req.body);
+    return updateBookingStatus(paramId(req), body.status, actorName(req));
   }),
 );
 

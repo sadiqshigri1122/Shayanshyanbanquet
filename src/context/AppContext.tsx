@@ -59,6 +59,7 @@ import {
   loadStoredAuth,
   saveStoredAuth,
 } from '../utils/authUtils';
+import { getErrorMessage } from '../utils/errorMessage';
 
 const STORAGE_KEY = 'shayan-banquet-demo';
 const USE_API = isApiEnabled();
@@ -145,6 +146,8 @@ interface AppContextType extends AppState {
   apiMode: boolean;
   apiLoading: boolean;
   apiError: string | null;
+  actionError: string | null;
+  clearActionError: () => void;
 }
 
 export interface CreateBookingInput {
@@ -239,6 +242,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   });
   const [apiLoading, setApiLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const clearActionError = useCallback(() => setActionError(null), []);
+
+  const reportActionError = useCallback((err: unknown) => {
+    setActionError(getErrorMessage(err));
+  }, []);
 
   const applyApiState = useCallback(
     (data: Awaited<ReturnType<typeof api.getState>>, currentUser?: User) =>
@@ -275,11 +285,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const task = (async () => {
       const data = await api.getState();
       setState(applyApiState(data));
+      setApiError(null);
     })();
 
     stateFetchInFlight.current = task;
     try {
       await task;
+    } catch (err) {
+      setApiError(getErrorMessage(err, 'Could not load data from server'));
+      throw err;
     } finally {
       stateFetchInFlight.current = null;
     }
@@ -307,7 +321,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
             return user ? { ...prev, currentUser: user } : prev;
           });
         }
-      } catch {
+      } catch (err) {
+        setApiError(getErrorMessage(err, 'Session expired or API unavailable'));
         setAuthToken(null);
         clearStoredAuth();
         if (!cancelled) setIsAuthenticated(false);
@@ -385,9 +400,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addCustomer = useCallback(
     async (data: Omit<Customer, 'id' | 'createdAt'>): Promise<Customer> => {
       if (USE_API) {
-        const customer = await api.createCustomer(data);
-        await refreshFromApi();
-        return customer;
+        try {
+          clearActionError();
+          const customer = await api.createCustomer(data);
+          await refreshFromApi();
+          return customer;
+        } catch (err) {
+          reportActionError(err);
+          throw err;
+        }
       }
 
       const customer: Customer = {
@@ -405,7 +426,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       });
       return customer;
     },
-    [addAuditLog, state.currentUser.name, refreshFromApi],
+    [addAuditLog, state.currentUser.name, refreshFromApi, clearActionError, reportActionError],
   );
 
   const createBooking = useCallback(
@@ -427,7 +448,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
           });
           await refreshFromApi();
           return booking;
-        } catch {
+        } catch (err) {
+          reportActionError(err);
           return null;
         }
       }
@@ -585,14 +607,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       return booking;
     },
-    [state.bookings, state.settings, state.venues, getNextSerial, addAuditLog, addNotification, refreshFromApi],
+    [state.bookings, state.settings, state.venues, getNextSerial, addAuditLog, addNotification, refreshFromApi, reportActionError],
   );
 
   const updateBookingStatus = useCallback(
     async (bookingId: string, status: BookingStatus, by: string) => {
       if (USE_API) {
-        await api.updateBookingStatus(bookingId, { status, by });
-        await refreshFromApi();
+        try {
+          clearActionError();
+          await api.updateBookingStatus(bookingId, { status, by });
+          await refreshFromApi();
+        } catch (err) {
+          reportActionError(err);
+        }
         return;
       }
 
@@ -619,7 +646,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         };
       });
     },
-    [addAuditLog, refreshFromApi],
+    [addAuditLog, refreshFromApi, clearActionError, reportActionError],
   );
 
   const requestCancellation = useCallback(
@@ -629,7 +656,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
           await api.requestCancellation(bookingId, { reason, by });
           await refreshFromApi();
           return true;
-        } catch {
+        } catch (err) {
+          reportActionError(err);
           return false;
         }
       }
@@ -684,7 +712,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       return true;
     },
-    [state.bookings, addAuditLog, addNotification, refreshFromApi],
+    [state.bookings, addAuditLog, addNotification, refreshFromApi, reportActionError],
   );
 
   const addPayment = useCallback(
@@ -694,7 +722,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
           const result = await api.addPayment(data);
           await refreshFromApi();
           return result;
-        } catch {
+        } catch (err) {
+          reportActionError(err);
           return null;
         }
       }
@@ -774,15 +803,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       return { payment, receipt };
     },
-    [state.bookings, state.receipts.length, addAuditLog, addNotification, refreshFromApi],
+    [state.bookings, state.receipts.length, addAuditLog, addNotification, refreshFromApi, reportActionError],
   );
 
   const addExpense = useCallback(
     async (data: Omit<Expense, 'id' | 'approvalStatus'>) => {
       if (USE_API) {
-        const expense = await api.addExpense(data);
-        await refreshFromApi();
-        return expense as Expense;
+        try {
+          clearActionError();
+          const expense = await api.addExpense(data);
+          await refreshFromApi();
+          return expense as Expense;
+        } catch (err) {
+          reportActionError(err);
+          throw err;
+        }
       }
 
       const expense: Expense = {
@@ -813,14 +848,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }));
       return expense;
     },
-    [refreshFromApi],
+    [refreshFromApi, clearActionError, reportActionError],
   );
 
   const approveRequest = useCallback(
     async (id: string, approved: boolean, notes: string, by: string) => {
       if (USE_API) {
-        await api.approveRequest(id, { approved, notes, by });
-        await refreshFromApi();
+        try {
+          clearActionError();
+          await api.approveRequest(id, { approved, notes, by });
+          await refreshFromApi();
+        } catch (err) {
+          reportActionError(err);
+        }
         return;
       }
 
@@ -891,14 +931,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
         details: notes || `Approval ${approved ? 'granted' : 'denied'}`,
       });
     },
-    [addAuditLog, refreshFromApi],
+    [addAuditLog, refreshFromApi, clearActionError, reportActionError],
   );
 
   const markNotificationRead = useCallback(
     async (id: string) => {
       if (USE_API) {
-        await api.markNotificationRead(id);
-        await refreshFromApi();
+        try {
+          await api.markNotificationRead(id);
+          await refreshFromApi();
+        } catch (err) {
+          reportActionError(err);
+        }
         return;
       }
       setState((prev) => ({
@@ -906,31 +950,41 @@ export function AppProvider({ children }: { children: ReactNode }) {
         notifications: prev.notifications.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
       }));
     },
-    [refreshFromApi],
+    [refreshFromApi, reportActionError],
   );
 
   const markAllNotificationsRead = useCallback(async () => {
     if (USE_API) {
-      await api.markAllNotificationsRead();
-      await refreshFromApi();
+      try {
+        await api.markAllNotificationsRead();
+        await refreshFromApi();
+      } catch (err) {
+        reportActionError(err);
+      }
       return;
     }
     setState((prev) => ({
       ...prev,
       notifications: prev.notifications.map((n) => ({ ...n, isRead: true })),
     }));
-  }, [refreshFromApi]);
+  }, [refreshFromApi, reportActionError]);
 
   const updateSettings = useCallback(
     async (settings: Partial<SystemSettings>) => {
       if (USE_API) {
-        await api.updateSettings(settings);
-        await refreshFromApi();
+        try {
+          clearActionError();
+          await api.updateSettings(settings);
+          await refreshFromApi();
+        } catch (err) {
+          reportActionError(err);
+          throw err;
+        }
         return;
       }
       setState((prev) => ({ ...prev, settings: { ...prev.settings, ...settings } }));
     },
-    [refreshFromApi],
+    [refreshFromApi, clearActionError, reportActionError],
   );
 
   const setCurrentUser = useCallback((user: User) => {
@@ -1105,7 +1159,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
           await api.updateBookingCharges(bookingId, { services, discount, by, reason });
           await refreshFromApi();
           return true;
-        } catch {
+        } catch (err) {
+          reportActionError(err);
           return false;
         }
       }
@@ -1194,7 +1249,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       });
       return true;
     },
-    [state.bookings, refreshFromApi],
+    [state.bookings, refreshFromApi, reportActionError],
   );
 
   const addBookingServiceItem = useCallback(
@@ -1212,7 +1267,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
           await api.addBookingServiceItem(bookingId, { particular, amount, by, guestCount });
           await refreshFromApi();
           return true;
-        } catch {
+        } catch (err) {
+          reportActionError(err);
           return false;
         }
       }
@@ -1259,7 +1315,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       return true;
     },
-    [state.bookings, refreshFromApi],
+    [state.bookings, refreshFromApi, reportActionError],
   );
 
   const addEventExpense = useCallback(
@@ -1269,7 +1325,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
           const expense = await api.addEventExpense(data);
           await refreshFromApi();
           return expense;
-        } catch {
+        } catch (err) {
+          reportActionError(err);
           return null;
         }
       }
@@ -1304,7 +1361,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       return expense;
     },
-    [state.bookings, refreshFromApi],
+    [state.bookings, refreshFromApi, reportActionError],
   );
 
   const updateEventExpense = useCallback(
@@ -1318,7 +1375,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
           await api.updateEventExpense(id, { ...data, by });
           await refreshFromApi();
           return true;
-        } catch {
+        } catch (err) {
+          reportActionError(err);
           return false;
         }
       }
@@ -1360,7 +1418,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       return true;
     },
-    [state.eventExpenses, state.bookings, refreshFromApi],
+    [state.eventExpenses, state.bookings, refreshFromApi, reportActionError],
   );
 
   const deleteEventExpense = useCallback(
@@ -1370,7 +1428,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
           await api.deleteEventExpense(id, { by });
           await refreshFromApi();
           return true;
-        } catch {
+        } catch (err) {
+          reportActionError(err);
           return false;
         }
       }
@@ -1400,7 +1459,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       return true;
     },
-    [state.eventExpenses, state.bookings, refreshFromApi],
+    [state.eventExpenses, state.bookings, refreshFromApi, reportActionError],
   );
 
   const getEventExpensesForBooking = useCallback(
@@ -1442,6 +1501,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     apiMode: USE_API,
     apiLoading,
     apiError,
+    actionError,
+    clearActionError,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

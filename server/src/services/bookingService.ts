@@ -8,6 +8,9 @@ import {
   getDayName,
   isFinanciallyEditable,
   needsDiscountApproval,
+  assertValidStatusTransition,
+  parseBookingStatus,
+  validateAndNormalizeLineItems,
   type BookingStatus,
   type LineItemInput,
 } from '../lib/bookingLogic.js';
@@ -78,7 +81,7 @@ export async function createBooking(body: CreateBookingBody) {
   const customer = await prisma.customer.findUnique({ where: { id: body.customerId } });
   if (!customer) throw new ApiError('Customer not found', 404);
 
-  if (body.services.length === 0) throw new ApiError('At least one charge is required', 400);
+  const services = validateAndNormalizeLineItems(body.services);
 
   const existing = await prisma.booking.findMany({
     select: { id: true, venueId: true, functionDate: true, status: true },
@@ -98,7 +101,7 @@ export async function createBooking(body: CreateBookingBody) {
 
   const maxSerial = await prisma.booking.aggregate({ _max: { serialNumber: true } });
   const serial = (maxSerial._max.serialNumber ?? 0) + 1;
-  const { subtotal, grandTotal } = calculateBookingTotals(body.services, body.discount);
+  const { subtotal, grandTotal } = calculateBookingTotals(services, body.discount);
   const cappedAdvance = Math.min(Math.max(0, body.advancePaid), grandTotal);
   const remainingBalance = calculateRemainingBalance(grandTotal, cappedAdvance);
   const paymentStatus = derivePaymentStatus(grandTotal, cappedAdvance);
@@ -140,7 +143,7 @@ export async function createBooking(body: CreateBookingBody) {
         createdAt: now,
         updatedAt: now,
         lineItems: {
-          create: body.services.map((s) => ({
+          create: services.map((s) => ({
             serviceId: s.serviceId,
             serviceName: s.serviceName,
             guestCount: s.guestCount,
@@ -234,9 +237,12 @@ export async function updateBookingStatus(id: string, status: BookingStatus, by:
   const booking = await prisma.booking.findUnique({ where: { id } });
   if (!booking) throw new ApiError('Booking not found', 404);
 
+  const nextStatus = parseBookingStatus(status);
+  assertValidStatusTransition(booking.status as BookingStatus, nextStatus);
+
   const updated = await prisma.booking.update({
     where: { id },
-    data: { status, lastUpdatedBy: by, updatedAt: new Date().toISOString() },
+    data: { status: nextStatus, lastUpdatedBy: by, updatedAt: new Date().toISOString() },
     include: { customer: true, lineItems: true },
   });
 
@@ -245,7 +251,7 @@ export async function updateBookingStatus(id: string, status: BookingStatus, by:
     entity: 'Booking',
     entityId: booking.bookingNumber,
     performedBy: by,
-    details: `Status: ${booking.status} → ${status}`,
+    details: `Status: ${booking.status} → ${nextStatus}`,
   });
 
   return mapBooking(updated);
@@ -263,9 +269,9 @@ export async function updateBookingCharges(
   if (!isFinanciallyEditable(booking.status as BookingStatus)) {
     throw new ApiError('Booking is locked for financial edits', 403);
   }
-  if (services.length === 0) throw new ApiError('At least one charge is required', 400);
+  const normalizedServices = validateAndNormalizeLineItems(services);
 
-  const { subtotal, grandTotal } = calculateBookingTotals(services, discount);
+  const { subtotal, grandTotal } = calculateBookingTotals(normalizedServices, discount);
   const remainingBalance = calculateRemainingBalance(grandTotal, booking.advancePaid);
   const paymentStatus = derivePaymentStatus(grandTotal, booking.advancePaid);
 
@@ -282,7 +288,7 @@ export async function updateBookingCharges(
         lastUpdatedBy: by,
         updatedAt: new Date().toISOString(),
         lineItems: {
-          create: services.map((s) => ({
+          create: normalizedServices.map((s) => ({
             serviceId: s.serviceId,
             serviceName: s.serviceName,
             guestCount: s.guestCount,
@@ -613,7 +619,7 @@ export async function addBookingServiceItem(
   }
 
   const now = new Date().toISOString();
-  const services: LineItemInput[] = [
+  const services = validateAndNormalizeLineItems([
     ...lineItemsToInput(booking.lineItems),
     {
       serviceId: `event-day-${Date.now()}`,
@@ -626,7 +632,7 @@ export async function addBookingServiceItem(
       enteredAt: now,
       isEventDayAddition: true,
     },
-  ];
+  ]);
 
   const { subtotal, grandTotal } = calculateBookingTotals(services, booking.discount);
   const remainingBalance = calculateRemainingBalance(grandTotal, booking.advancePaid);
