@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: shayan-banquet-api
+    runtime: node
+    plan: starter
+    region: singapore
+    branch: main
+    rootDir: server
+    autoDeploy: true
+    buildCommand: npm ci && npx prisma generate && npx prisma db push && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: DEMO_PASSWORD
+        sync: false
