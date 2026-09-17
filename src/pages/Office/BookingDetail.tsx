@@ -10,6 +10,7 @@ import { isBookingFinanciallyEditable, computeEventBilling } from '../../utils/e
 import { manualRowsToServices, servicesToManualRows, type ManualLineItem } from '../../utils/manualPricing';
 import StatusBadge from '../../components/StatusBadge';
 import Modal from '../../components/Modal';
+import ConfirmDialog from '../../components/ConfirmDialog';
 import PrintBookingSlip from '../../components/PrintBookingSlip';
 import PrintReceipt from '../../components/PrintReceipt';
 import ManualPricingTable from '../../components/ManualPricingTable';
@@ -38,6 +39,11 @@ export default function BookingDetail() {
   const [showEditCharges, setShowEditCharges] = useState(searchParams.get('action') === 'charges');
   const [showReceipt, setShowReceipt] = useState<string | null>(null);
   const [showAudit, setShowAudit] = useState(false);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [closingEvent, setClosingEvent] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [canceling, setCanceling] = useState(false);
   const [pricingRows, setPricingRows] = useState<ManualLineItem[]>([]);
   const [editDiscount, setEditDiscount] = useState(0);
   const [editDiscountPct, setEditDiscountPct] = useState('');
@@ -299,11 +305,7 @@ export default function BookingDetail() {
               <div className="space-y-2">
                 {booking.status === 'confirmed' && editable && (
                   <button
-                    onClick={() => {
-                      if (window.confirm('Close this event? Financial records will be locked.')) {
-                        updateBookingStatus(booking.id, 'completed', currentUser.name);
-                      }
-                    }}
+                    onClick={() => setShowCloseConfirm(true)}
                     className="w-full py-2 bg-primary text-white rounded-lg text-sm font-semibold"
                   >
                     Close Event & Lock Records
@@ -311,10 +313,7 @@ export default function BookingDetail() {
                 )}
                 {!['cancelled', 'cancellation_requested', 'completed'].includes(booking.status) && (
                   <button
-                    onClick={() => {
-                      const reason = window.prompt('Reason for cancellation (optional):') ?? '';
-                      if (reason !== null) requestCancellation(booking.id, reason, currentUser.name);
-                    }}
+                    onClick={() => { setCancelReason(''); setShowCancelModal(true); }}
                     className="w-full py-2 bg-danger/10 text-danger rounded-lg text-sm font-semibold"
                   >
                     Request Cancellation
@@ -370,6 +369,88 @@ export default function BookingDetail() {
         <Modal title="Receipt" onClose={() => setShowReceipt(null)} wide>
           <PrintReceipt receipt={bookingReceipts.find((r) => r.id === showReceipt)!} />
         </Modal>
+      )}
+
+      {showCancelModal && (
+        <Modal title="Request Cancellation" onClose={() => !canceling && setShowCancelModal(false)}>
+          <div className="space-y-4">
+            <p className="text-sm text-muted">
+              This will send a cancellation request to the manager. The hall stays blocked until approved.
+            </p>
+            <div className="rounded-lg bg-surface-alt border border-border px-4 py-3 text-sm">
+              <p className="font-semibold text-primary">{booking.customer.name}</p>
+              <p className="text-muted text-xs mt-0.5">
+                {booking.bookingNumber} · {booking.functionDate} · {booking.venueName}
+              </p>
+            </div>
+            <textarea
+              placeholder="Reason for cancellation (optional)"
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              rows={3}
+              className="w-full border rounded-lg px-3 py-2 text-sm resize-none"
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowCancelModal(false)}
+                disabled={canceling}
+                className="flex-1 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold hover:bg-gray-50 disabled:opacity-50"
+              >
+                Go Back
+              </button>
+              <button
+                onClick={async () => {
+                  setCanceling(true);
+                  try {
+                    await requestCancellation(booking.id, cancelReason, currentUser.name);
+                    setShowCancelModal(false);
+                    setCancelReason('');
+                  } finally {
+                    setCanceling(false);
+                  }
+                }}
+                disabled={canceling}
+                className="flex-1 py-2.5 rounded-lg bg-danger text-white text-sm font-semibold hover:bg-danger/90 disabled:opacity-50"
+              >
+                {canceling ? 'Submitting…' : 'Submit Request'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showCloseConfirm && billing && (
+        <ConfirmDialog
+          title="Close this event?"
+          message="Financial records will be locked. You won't be able to edit charges, payments, or expenses after closing."
+          confirmLabel="Close Event"
+          cancelLabel="Not Yet"
+          icon="lock"
+          loading={closingEvent}
+          onConfirm={async () => {
+            setClosingEvent(true);
+            try {
+              await updateBookingStatus(booking.id, 'completed', currentUser.name);
+              setShowCloseConfirm(false);
+            } finally {
+              setClosingEvent(false);
+            }
+          }}
+          onCancel={() => setShowCloseConfirm(false)}
+          details={
+            <>
+              <p className="font-semibold text-primary">{booking.customer.name}</p>
+              <p className="text-muted text-xs mt-0.5">
+                {booking.bookingNumber} · {booking.functionDate} · {booking.venueName}
+              </p>
+              {billing.remainingBalance > 0 && (
+                <p className="text-warning text-xs mt-2 font-medium">
+                  Outstanding balance: {formatCurrency(billing.remainingBalance)}
+                </p>
+              )}
+            </>
+          }
+        />
       )}
     </div>
   );

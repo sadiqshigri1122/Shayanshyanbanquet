@@ -15,6 +15,7 @@ import { CUSTOM_CHARGE_SUGGESTIONS } from '../../utils/manualPricing';
 import { EVENT_EXPENSE_CATEGORIES } from '../../types';
 import StatusBadge from '../../components/StatusBadge';
 import Modal from '../../components/Modal';
+import ConfirmDialog from '../../components/ConfirmDialog';
 import PaymentModal from '../../components/PaymentModal';
 import { printDocument } from '../../utils/printDocument';
 
@@ -45,6 +46,10 @@ export default function EventDayReport() {
   const [showAddItem, setShowAddItem] = useState(false);
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [closingEvent, setClosingEvent] = useState(false);
+  const [deleteExpenseId, setDeleteExpenseId] = useState<string | null>(null);
+  const [deletingExpense, setDeletingExpense] = useState(false);
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
 
   const [itemForm, setItemForm] = useState({ particular: '', amount: '', guestCount: '' });
@@ -115,8 +120,12 @@ export default function EventDayReport() {
   };
 
   const handleMarkCompleted = async () => {
-    if (window.confirm('Close this event? Financial records will be locked.')) {
+    setClosingEvent(true);
+    try {
       await updateBookingStatus(booking.id, 'completed', currentUser.name);
+      setShowCloseConfirm(false);
+    } finally {
+      setClosingEvent(false);
     }
   };
 
@@ -145,7 +154,7 @@ export default function EventDayReport() {
                 <CreditCard size={14} /> Record Payment
               </button>
               {!['completed'].includes(booking.status) && ['confirmed', 'hold', 'tentative'].includes(booking.status) && (
-                <button onClick={handleMarkCompleted} className="flex items-center gap-1 px-3 py-2 bg-primary text-white rounded-lg text-sm font-semibold">
+                <button onClick={() => setShowCloseConfirm(true)} className="flex items-center gap-1 px-3 py-2 bg-primary text-white rounded-lg text-sm font-semibold">
                   <CheckCircle2 size={14} /> Close Event
                 </button>
               )}
@@ -306,11 +315,7 @@ export default function EventDayReport() {
                         <Edit3 size={14} />
                       </button>
                       <button
-                        onClick={() => {
-                          if (window.confirm('Delete this expense?')) {
-                            deleteEventExpense(e.id, currentUser.name);
-                          }
-                        }}
+                        onClick={() => setDeleteExpenseId(e.id)}
                         className="p-1 text-muted hover:text-danger ml-1"
                         title="Delete"
                       >
@@ -462,6 +467,65 @@ export default function EventDayReport() {
 
       {showPayment && (
         <PaymentModal booking={booking} onClose={() => setShowPayment(false)} />
+      )}
+
+      {deleteExpenseId && (() => {
+        const expense = eventExpenses.find((e) => e.id === deleteExpenseId);
+        if (!expense) return null;
+        return (
+          <ConfirmDialog
+            title="Delete this expense?"
+            message="This office cost will be removed from the event report. This cannot be undone."
+            confirmLabel="Delete"
+            cancelLabel="Keep"
+            icon="delete"
+            variant="danger"
+            loading={deletingExpense}
+            onConfirm={async () => {
+              setDeletingExpense(true);
+              try {
+                await deleteEventExpense(deleteExpenseId, currentUser.name);
+                setDeleteExpenseId(null);
+              } finally {
+                setDeletingExpense(false);
+              }
+            }}
+            onCancel={() => setDeleteExpenseId(null)}
+            details={
+              <>
+                <p className="font-semibold text-primary">{expense.category}</p>
+                <p className="text-muted text-xs mt-0.5">{expense.description || 'No description'}</p>
+                <p className="text-danger text-sm font-semibold mt-2">{formatCurrency(expense.amount)}</p>
+              </>
+            }
+          />
+        );
+      })()}
+
+      {showCloseConfirm && (
+        <ConfirmDialog
+          title="Close this event?"
+          message="Financial records will be locked. You won't be able to add items, record payments, or edit expenses after closing."
+          confirmLabel="Close Event"
+          cancelLabel="Not Yet"
+          icon="lock"
+          loading={closingEvent}
+          onConfirm={handleMarkCompleted}
+          onCancel={() => setShowCloseConfirm(false)}
+          details={
+            <>
+              <p className="font-semibold text-primary">{booking.customer.name}</p>
+              <p className="text-muted text-xs mt-0.5">
+                {booking.bookingNumber} · {booking.functionDate} · {booking.venueName}
+              </p>
+              {billing.remainingBalance > 0 && (
+                <p className="text-warning text-xs mt-2 font-medium">
+                  Outstanding balance: {formatCurrency(billing.remainingBalance)}
+                </p>
+              )}
+            </>
+          }
+        />
       )}
     </div>
   );
