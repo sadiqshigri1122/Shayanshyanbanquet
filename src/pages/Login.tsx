@@ -95,7 +95,7 @@ export default function Login() {
     setPassword('');
     setError('');
     setSelectedDemo(demoEmail);
-    document.getElementById('password')?.focus();
+    document.getElementById('staff-password')?.focus();
   };
 
   return (
@@ -190,7 +190,11 @@ export default function Login() {
             <p className="text-muted text-sm">Sign in to your staff account to continue.</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="card !p-8 shadow-lg border border-border/80 bg-white/95 backdrop-blur-sm">
+          <form
+            onSubmit={handleSubmit}
+            autoComplete="off"
+            className="card !p-8 shadow-lg border border-border/80 bg-white/95 backdrop-blur-sm"
+          >
             {error && (
               <div
                 role="alert"
@@ -202,18 +206,25 @@ export default function Login() {
 
             <div className="space-y-5">
               <div>
-                <label htmlFor="email" className="block text-sm font-semibold text-text-primary mb-1.5">
+                <label htmlFor="staff-email" className="block text-sm font-semibold text-text-primary mb-1.5">
                   Email address
                 </label>
                 <div className="relative group">
                   <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary group-focus-within:text-primary transition-colors" />
                   <input
-                    id="email"
+                    id="staff-email"
+                    name="staff-email"
                     type="email"
-                    autoComplete="email"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="none"
+                    spellCheck={false}
                     required
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setSelectedDemo(null);
+                    }}
                     placeholder="name@shayanbanquet.pk"
                     className="w-full pl-10 pr-4 py-2.5 bg-white transition-shadow focus:shadow-[0_0_0_3px_rgba(15,76,117,0.12)]"
                   />
@@ -221,15 +232,16 @@ export default function Login() {
               </div>
 
               <div>
-                <label htmlFor="password" className="block text-sm font-semibold text-text-primary mb-1.5">
+                <label htmlFor="staff-password" className="block text-sm font-semibold text-text-primary mb-1.5">
                   Password
                 </label>
                 <div className="relative group">
                   <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary group-focus-within:text-primary transition-colors" />
                   <input
-                    id="password"
+                    id="staff-password"
+                    name="staff-password"
                     type={showPassword ? 'text' : 'password'}
-                    autoComplete="current-password"
+                    autoComplete="off"
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
