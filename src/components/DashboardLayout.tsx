@@ -189,7 +189,7 @@ export default function DashboardLayout({ role }: Props) {
                             <p className="text-xs text-muted mt-0.5 line-clamp-2">{n.message}</p>
                           </>
                         );
-                        const className = `block p-3 border-b border-surface-alt hover:bg-surface-alt ${!n.isRead ? 'bg-secondary-light/50' : ''}`;
+                        const className = `block p-3 border-b border-surface-alt hover:bg-surface-alt ${!n.isRead ? 'bg-secondary-light/50' : ''} ${n.type === 'warning' ? 'border-l-2 border-l-warning' : n.type === 'success' ? 'border-l-2 border-l-success' : ''}`;
 
                         if (n.link) {
                           return (

@@ -226,7 +226,14 @@ export async function createBooking(body: CreateBookingBody) {
       title: 'Discount Approval Required',
       message: `Booking ${bookingNumber} requires manager approval.`,
       type: 'warning',
-      link: '/manager/approvals',
+      link: `/office/bookings/${bookingId}`,
+    });
+  } else {
+    await appendNotification({
+      title: 'New Booking Created',
+      message: `${bookingNumber} — ${customer.name} · ${venue.name} · ${body.functionDate}`,
+      type: 'success',
+      link: `/office/bookings/${bookingId}`,
     });
   }
 
@@ -253,6 +260,15 @@ export async function updateBookingStatus(id: string, status: BookingStatus, by:
     performedBy: by,
     details: `Status: ${booking.status} → ${nextStatus}`,
   });
+
+  if (nextStatus === 'completed') {
+    await appendNotification({
+      title: 'Event Closed',
+      message: `${booking.bookingNumber} — ${booking.venueName} marked completed and locked.`,
+      type: 'info',
+      link: `/office/bookings/${id}`,
+    });
+  }
 
   return mapBooking(updated);
 }
@@ -363,7 +379,7 @@ export async function requestCancellation(id: string, reason: string, by: string
     title: 'Cancellation Approval Required',
     message: `${booking.bookingNumber} needs manager approval.`,
     type: 'warning',
-    link: '/manager/approvals',
+    link: `/office/bookings/${id}`,
   });
 
   return getBookingById(id);
@@ -450,6 +466,13 @@ export async function addPayment(body: {
     details: `Rs. ${amount.toLocaleString()} received for ${booking.bookingNumber}`,
   });
 
+  await appendNotification({
+    title: 'Payment Received',
+    message: `Rs. ${amount.toLocaleString('en-PK')} from ${booking.customer.name} for ${booking.bookingNumber}`,
+    type: 'success',
+    link: `/office/bookings/${booking.id}`,
+  });
+
   return {
     payment: {
       id: paymentId,
@@ -510,6 +533,22 @@ export async function approveRequest(id: string, approved: boolean, notes: strin
     entityId: id,
     performedBy: by,
     details: notes || `Approval ${approved ? 'granted' : 'denied'}`,
+  });
+
+  let link = '/manager/approvals';
+  if (approval.entityType === 'Booking') {
+    const relatedBooking = await prisma.booking.findFirst({
+      where: { bookingNumber: approval.entityId },
+      select: { id: true },
+    });
+    if (relatedBooking) link = `/office/bookings/${relatedBooking.id}`;
+  }
+
+  await appendNotification({
+    title: approved ? 'Request Approved' : 'Request Rejected',
+    message: `${approval.requestType.replace('_', ' ')} for ${approval.details} was ${approved ? 'approved' : 'rejected'}.`,
+    type: approved ? 'success' : 'warning',
+    link,
   });
 }
 
@@ -590,6 +629,13 @@ export async function addExpense(data: {
         createdAt: now,
         details: `${data.category} — Rs. ${data.amount.toLocaleString()}`,
       },
+    });
+
+    await appendNotification({
+      title: 'Expense Approval Required',
+      message: `${data.category} — Rs. ${data.amount.toLocaleString('en-PK')} needs manager approval.`,
+      type: 'warning',
+      link: '/manager/approvals',
     });
   }
 

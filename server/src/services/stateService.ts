@@ -18,6 +18,10 @@ import {
 const AUDIT_LOG_LIMIT = 250;
 const NOTIFICATION_LIMIT = 100;
 
+export function newNotificationId(): string {
+  return `n${Date.now()}${Math.random().toString(36).slice(2, 6)}`;
+}
+
 export async function getFullAppState(): Promise<AppStateDto> {
   const [
     bookings,
@@ -109,7 +113,7 @@ export async function appendNotification(n: {
 }) {
   await prisma.notificationRecord.create({
     data: {
-      id: `n${Date.now()}`,
+      id: newNotificationId(),
       isRead: false,
       createdAt: new Date().toISOString(),
       ...n,
@@ -149,7 +153,7 @@ export async function updateSettings(data: {
 }
 
 export async function markNotificationRead(id: string) {
-  await prisma.notificationRecord.update({
+  await prisma.notificationRecord.updateMany({
     where: { id },
     data: { isRead: true },
   });
