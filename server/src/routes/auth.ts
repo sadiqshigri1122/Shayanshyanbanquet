@@ -53,7 +53,7 @@ authRouter.post(
 authRouter.post(
   '/logout',
   handle(async (req) => {
-    destroySession(extractToken(req));
+    await destroySession(extractToken(req));
     return { ok: true };
   }),
 );

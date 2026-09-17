@@ -14,41 +14,60 @@ export interface SessionUser {
   role: UserRole;
 }
 
-interface SessionRecord {
-  user: SessionUser;
-  expiresAt: number;
+function sessionUserFromRow(row: {
+  userId: string;
+  userName: string;
+  userEmail: string;
+  userRole: string;
+}): SessionUser | null {
+  if (!isUserRole(row.userRole)) return null;
+  return {
+    id: row.userId,
+    name: row.userName,
+    email: row.userEmail,
+    role: row.userRole,
+  };
 }
 
-const sessions = new Map<string, SessionRecord>();
-
-function purgeExpiredSessions(): void {
-  const now = Date.now();
-  for (const [token, session] of sessions) {
-    if (session.expiresAt <= now) sessions.delete(token);
-  }
+export async function purgeExpiredSessions(): Promise<void> {
+  await prisma.authSession.deleteMany({
+    where: { expiresAt: { lte: new Date() } },
+  });
 }
 
-export function createSession(user: SessionUser, remember = false): string {
-  purgeExpiredSessions();
+export async function createSession(user: SessionUser, remember = false): Promise<string> {
   const token = randomBytes(32).toString('hex');
   const ttl = remember ? REMEMBER_TTL_MS : SESSION_TTL_MS;
-  sessions.set(token, { user, expiresAt: Date.now() + ttl });
+  await prisma.authSession.create({
+    data: {
+      token,
+      userId: user.id,
+      userName: user.name,
+      userEmail: user.email,
+      userRole: user.role,
+      expiresAt: new Date(Date.now() + ttl),
+    },
+  });
   return token;
 }
 
-export function getSession(token: string | undefined): SessionUser | null {
+export async function getSession(token: string | undefined): Promise<SessionUser | null> {
   if (!token) return null;
-  purgeExpiredSessions();
-  const session = sessions.get(token);
-  if (!session || session.expiresAt <= Date.now()) {
-    sessions.delete(token);
+
+  const row = await prisma.authSession.findUnique({ where: { token } });
+  if (!row) return null;
+
+  if (row.expiresAt <= new Date()) {
+    await prisma.authSession.delete({ where: { token } }).catch(() => undefined);
     return null;
   }
-  return session.user;
+
+  return sessionUserFromRow(row);
 }
 
-export function destroySession(token: string | undefined): void {
-  if (token) sessions.delete(token);
+export async function destroySession(token: string | undefined): Promise<void> {
+  if (!token) return;
+  await prisma.authSession.deleteMany({ where: { token } });
 }
 
 export async function login(
@@ -71,5 +90,5 @@ export async function login(
     role: row.role,
   };
 
-  return { token: createSession(user, remember), user };
+  return { token: await createSession(user, remember), user };
 }

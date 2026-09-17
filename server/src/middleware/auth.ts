@@ -20,19 +20,27 @@ function extractToken(req: Request): string | undefined {
   return undefined;
 }
 
-export function optionalAuth(req: Request, _res: Response, next: NextFunction): void {
-  req.user = getSession(extractToken(req)) ?? undefined;
-  next();
+export async function optionalAuth(req: Request, _res: Response, next: NextFunction): Promise<void> {
+  try {
+    req.user = (await getSession(extractToken(req))) ?? undefined;
+    next();
+  } catch (err) {
+    next(err);
+  }
 }
 
-export function requireAuth(req: Request, res: Response, next: NextFunction): void {
-  const user = getSession(extractToken(req));
-  if (!user) {
-    res.status(401).json({ error: 'Authentication required.' });
-    return;
+export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const user = await getSession(extractToken(req));
+    if (!user) {
+      res.status(401).json({ error: 'Authentication required.' });
+      return;
+    }
+    req.user = user;
+    next();
+  } catch (err) {
+    next(err);
   }
-  req.user = user;
-  next();
 }
 
 export function requireRole(...allowed: UserRole[]) {

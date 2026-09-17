@@ -1,6 +1,7 @@
 import cors from 'cors';
 import express from 'express';
 import { apiRouter } from './routes/api.js';
+import { purgeExpiredSessions } from './services/authService.js';
 import { startEventReminderScheduler } from './services/eventReminderService.js';
 
 const app = express();
@@ -23,7 +24,7 @@ app.use(
         callback(null, true);
         return;
       }
-      callback(new Error('Not allowed by CORS'));
+      callback(null, false);
     },
     credentials: true,
   }),
@@ -48,5 +49,6 @@ app.use('/api', apiRouter);
 
 app.listen(port, '0.0.0.0', () => {
   console.log(`Shayan Banquet API listening on http://0.0.0.0:${port}`);
+  void purgeExpiredSessions().catch((err) => console.error('Session cleanup failed:', err));
   startEventReminderScheduler();
 });

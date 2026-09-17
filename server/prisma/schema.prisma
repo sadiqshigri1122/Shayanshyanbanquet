@@ -206,3 +206,16 @@ model SystemSettingsRecord {
   companyAddress                  String
   termsAndConditions              String
 }
+
+model AuthSession {
+  token     String   @id
+  userId    String
+  userName  String
+  userEmail String
+  userRole  String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
