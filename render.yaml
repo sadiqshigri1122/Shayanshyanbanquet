@@ -16,6 +16,6 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: CORS_ORIGINS
-        sync: false
+        value: https://bookingmanagementsystem-nine.vercel.app,https://shayanshyanbanquet.vercel.app
       - key: DEMO_PASSWORD
         sync: false

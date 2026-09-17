@@ -18,6 +18,11 @@ app.use(
         callback(null, true);
         return;
       }
+      // Allow Vercel preview/production URLs without listing every alias in CORS_ORIGINS.
+      if (process.env.NODE_ENV === 'production' && /^https:\/\/[\w-]+\.vercel\.app$/i.test(origin)) {
+        callback(null, true);
+        return;
+      }
       callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
