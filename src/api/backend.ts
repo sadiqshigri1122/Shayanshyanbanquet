@@ -1,8 +1,13 @@
 /** API client for Shayan Banquet backend */
 
-export const isApiEnabled = (): boolean => import.meta.env.VITE_USE_API === 'true';
+const PRODUCTION_API_URL = 'https://shayan-banquet-api.onrender.com';
 
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '';
+export const isApiEnabled = (): boolean =>
+  import.meta.env.VITE_USE_API === 'true' || import.meta.env.PROD;
+
+const API_BASE =
+  (import.meta.env.VITE_API_URL as string | undefined)?.trim() ||
+  (import.meta.env.PROD ? PRODUCTION_API_URL : '');
 
 let authToken: string | null = null;
 
