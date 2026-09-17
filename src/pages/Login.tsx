@@ -64,7 +64,7 @@ export default function Login() {
   const [remember, setRemember] = useState(true);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [activeDemo, setActiveDemo] = useState<string | null>(null);
+  const [selectedDemo, setSelectedDemo] = useState<string | null>(null);
 
   if (isAuthenticated && !submitting) {
     const target = from ?? dashboardPathForRole(currentUser.role);
@@ -76,7 +76,6 @@ export default function Login() {
     setSubmitting(true);
     const result = await login(loginEmail.trim(), loginPassword, remember);
     setSubmitting(false);
-    setActiveDemo(null);
 
     if (!result.ok) {
       setError(result.error);
@@ -91,11 +90,12 @@ export default function Login() {
     await completeLogin(email, password);
   };
 
-  const quickLogin = async (demoEmail: string) => {
+  const fillDemoEmail = (demoEmail: string) => {
     setEmail(demoEmail);
-    setPassword('shayan123');
-    setActiveDemo(demoEmail);
-    await completeLogin(demoEmail, 'shayan123');
+    setPassword('');
+    setError('');
+    setSelectedDemo(demoEmail);
+    document.getElementById('password')?.focus();
   };
 
   return (
@@ -283,7 +283,7 @@ export default function Login() {
             <div className="flex items-center gap-3 mb-4">
               <div className="h-px flex-1 bg-border" />
               <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-tertiary">
-                Quick demo access
+                Select account type
               </span>
               <div className="h-px flex-1 bg-border" />
             </div>
@@ -291,22 +291,18 @@ export default function Login() {
             <div className="space-y-2.5">
               {DEMO_ACCOUNTS.map((demo) => {
                 const Icon = demo.icon;
-                const isLoading = submitting && activeDemo === demo.email;
+                const isSelected = selectedDemo === demo.email;
                 return (
                   <button
                     key={demo.email}
                     type="button"
                     disabled={submitting}
-                    onClick={() => void quickLogin(demo.email)}
-                    className={`w-full text-left rounded-xl border px-4 py-3 transition-all disabled:opacity-60 ${demo.accent}`}
+                    onClick={() => fillDemoEmail(demo.email)}
+                    className={`w-full text-left rounded-xl border px-4 py-3 transition-all disabled:opacity-60 ${demo.accent} ${isSelected ? 'ring-2 ring-primary/30' : ''}`}
                   >
                     <div className="flex items-center gap-3">
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white border border-border/80 shadow-sm">
-                        {isLoading ? (
-                          <Loader2 size={18} className="animate-spin text-primary" />
-                        ) : (
-                          <Icon size={18} className="text-primary" />
-                        )}
+                        <Icon size={18} className="text-primary" />
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="font-semibold text-sm text-text-primary">{demo.label}</p>
@@ -322,7 +318,7 @@ export default function Login() {
             </div>
 
             <p className="mt-4 text-center text-[11px] text-text-tertiary">
-              Demo password: <span className="font-mono text-text-secondary">shayan123</span>
+              Select a role above, then enter your password to sign in.
             </p>
           </div>
         </div>
