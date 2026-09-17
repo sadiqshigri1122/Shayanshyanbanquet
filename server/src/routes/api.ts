@@ -13,10 +13,8 @@ import {
   createCustomer,
   deleteEventExpense,
   getBookingById,
-  getBookingByNumber,
   listBookings,
   requestCancellation,
-  submitInquiry,
   updateBookingCharges,
   updateBookingStatus,
   updateEventExpense,
@@ -24,7 +22,6 @@ import {
 import { processEventReminders } from '../services/eventReminderService.js';
 import {
   getFullAppState,
-  getPublicMeta,
   markAllNotificationsRead,
   markNotificationRead,
   updateSettings,
@@ -69,20 +66,6 @@ apiRouter.use('/auth', authRouter);
 apiRouter.get(
   '/health',
   handle(async () => ({ ok: true, service: 'shayan-banquet-api' })),
-);
-
-apiRouter.get(
-  '/public/meta',
-  (_req, res, next) => {
-    res.set('Cache-Control', 'public, max-age=300');
-    next();
-  },
-  handle(async () => getPublicMeta()),
-);
-
-apiRouter.get(
-  '/public/bookings/:bookingNumber',
-  handle(async (req) => getBookingByNumber(paramId(req, 'bookingNumber'))),
 );
 
 apiRouter.get('/state', ...staffRead, handle(async () => getFullAppState()));
@@ -216,25 +199,6 @@ apiRouter.post(
       .parse(req.body);
     await approveRequest(paramId(req), body.approved, body.notes, actorName(req));
     return { ok: true };
-  }),
-);
-
-apiRouter.post(
-  '/inquiries',
-  handle(async (req) => {
-    const body = z
-      .object({
-        name: z.string().min(1).max(200),
-        phone: z.string().min(7).max(20),
-        email: z.string().email().optional().or(z.literal('')),
-        venueId: z.string().min(1),
-        functionDate: z.string().min(1),
-        programme: z.string().min(1),
-        numberOfGuests: z.number().int().positive(),
-        message: z.string().max(2000).optional(),
-      })
-      .parse(req.body);
-    return submitInquiry(body);
   }),
 );
 

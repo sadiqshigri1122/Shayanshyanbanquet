@@ -16,7 +16,7 @@ npm run db:setup
 npm run dev:all
 ```
 
-- **Public site:** http://localhost:5173/
+- **Login:** http://localhost:5173/login
 - **Booking office:** http://localhost:5173/office
 - **Manager:** http://localhost:5173/manager
 - **Admin:** http://localhost:5173/admin
@@ -26,13 +26,11 @@ npm run dev:all
 
 | Step | Where | What to try |
 |------|--------|-------------|
-| 1 | `/inquiry` | Submit a booking inquiry |
-| 2 | `/booking-status?ref=SB-1001` | Look up booking status |
-| 3 | `/office/new-booking` | Create a booking with advance payment |
-| 4 | `/office/event-day` | Open today's event (SB-1008) |
-| 5 | `/manager/approvals` | Approve SB-1003 discount or pending expense |
-| 6 | `/manager/reports` | Print or download CSV report |
-| 7 | `/admin/settings` | Update company info or discount threshold |
+| 1 | `/office/new-booking` | Create a booking with advance payment |
+| 2 | `/office/event-day` | Open today's event (SB-1008) |
+| 3 | `/manager/approvals` | Approve SB-1003 discount or pending expense |
+| 4 | `/manager/reports` | Print or download CSV report |
+| 5 | `/admin/settings` | Update company info or discount threshold |
 
 **Sample bookings:** SB-1001 (partial payment), SB-1003 (discount approval), SB-1007 (inquiry), SB-1008 (today's event)
 

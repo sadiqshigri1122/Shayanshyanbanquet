@@ -82,18 +82,6 @@ export async function getSettings() {
   return mapSettings(settings);
 }
 
-export async function getPublicMeta() {
-  const [settings, venues] = await Promise.all([
-    prisma.systemSettingsRecord.findUnique({ where: { id: 1 } }),
-    prisma.venue.findMany({ orderBy: { id: 'asc' } }),
-  ]);
-  if (!settings) throw new Error('System settings not initialized — run db:seed');
-  return {
-    settings: mapSettings(settings),
-    venues: venues.map(mapVenue),
-  };
-}
-
 export async function appendAuditLog(log: {
   action: string;
   entity: string;

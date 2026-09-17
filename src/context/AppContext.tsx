@@ -93,7 +93,6 @@ interface AppContextType extends AppState {
   markAllNotificationsRead: () => Promise<void>;
   addAuditLog: (log: Omit<AuditLog, 'id' | 'timestamp'>) => void;
   isVenueAvailable: (venueId: string, date: string, excludeBookingId?: string) => boolean;
-  getBookingByNumber: (number: string) => Booking | undefined;
   getNextSerial: () => number;
   updateSettings: (settings: Partial<SystemSettings>) => Promise<void>;
   resetUserPassword: (
@@ -113,7 +112,6 @@ interface AppContextType extends AppState {
     input: Partial<{ name: string; email: string; role: UserRole; phone: string | null; isActive: boolean }>,
   ) => Promise<{ ok: true; user: User } | { ok: false; error: string }>;
   deleteUser: (userId: string) => Promise<{ ok: true } | { ok: false; error: string }>;
-  submitInquiry: (data: InquiryInput) => Promise<Booking>;
   updateBookingCharges: (
     bookingId: string,
     services: BookingService[],
@@ -171,17 +169,6 @@ export interface AddPaymentInput {
   receivedBy: string;
   transactionRef?: string;
   notes?: string;
-}
-
-export interface InquiryInput {
-  name: string;
-  phone: string;
-  email?: string;
-  venueId: string;
-  functionDate: string;
-  programme: string;
-  numberOfGuests: number;
-  message?: string;
 }
 
 const defaultState: AppState = {
@@ -393,12 +380,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         state.settings.blockingStatuses,
       ),
     [state.bookings, state.settings.blockingStatuses],
-  );
-
-  const getBookingByNumber = useCallback(
-    (number: string) =>
-      state.bookings.find((b) => b.bookingNumber.toLowerCase() === number.toLowerCase()),
-    [state.bookings],
   );
 
   const addCustomer = useCallback(
@@ -1111,79 +1092,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, currentUser }));
   }, []);
 
-  const submitInquiry = useCallback(
-    async (data: InquiryInput): Promise<Booking> => {
-      if (USE_API) {
-        const booking = await api.submitInquiry(data);
-        await refreshFromApi();
-        return booking;
-      }
-
-      let customer = state.customers.find((c) => c.phone === data.phone);
-      if (!customer) {
-        customer = {
-          id: `c${Date.now()}`,
-          name: data.name,
-          phone: data.phone,
-          email: data.email,
-          address: 'Not provided',
-          createdAt: new Date().toISOString().split('T')[0],
-        };
-        setState((prev) => ({ ...prev, customers: [...prev.customers, customer!] }));
-      }
-
-      const venue = state.venues.find((v) => v.id === data.venueId)!;
-      const serial = getNextSerial();
-
-      const booking: Booking = {
-        id: `b${Date.now()}`,
-        bookingNumber: generateBookingNumber(serial),
-        serialNumber: serial,
-        bookingDate: new Date().toISOString().split('T')[0],
-        customer,
-        venueId: data.venueId,
-        venueName: venue.name,
-        functionDate: data.functionDate,
-        functionDay: getDayName(data.functionDate),
-        programme: data.programme,
-        numberOfGuests: data.numberOfGuests,
-        specialInstructions: data.message,
-        services: [],
-        subtotal: 0,
-        discount: 0,
-        taxAmount: 0,
-        grandTotal: 0,
-        advancePaid: 0,
-        remainingBalance: 0,
-        status: 'inquiry',
-        paymentStatus: 'pending',
-        createdBy: 'Website Inquiry',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-
-      setState((prev) => ({ ...prev, bookings: [...prev.bookings, booking] }));
-
-      addNotification({
-        title: 'New Booking Inquiry',
-        message: `${data.name} submitted inquiry for ${venue.name} on ${data.functionDate}`,
-        type: 'info',
-        link: '/office/bookings',
-      });
-
-      addAuditLog({
-        action: 'Inquiry Submitted',
-        entity: 'Booking',
-        entityId: booking.bookingNumber,
-        performedBy: data.name,
-        details: `Online inquiry for ${data.programme} — ${data.numberOfGuests} guests`,
-      });
-
-      return booking;
-    },
-    [state.customers, state.venues, getNextSerial, addNotification, addAuditLog, refreshFromApi],
-  );
-
   const updateBookingCharges = useCallback(
     async (
       bookingId: string,
@@ -1515,14 +1423,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     markAllNotificationsRead,
     addAuditLog,
     isVenueAvailable,
-    getBookingByNumber,
     getNextSerial,
     updateSettings,
     resetUserPassword,
     createUser,
     updateUser,
     deleteUser,
-    submitInquiry,
     updateBookingCharges,
     addBookingServiceItem,
     addEventExpense,

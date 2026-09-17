@@ -58,12 +58,6 @@ export interface LoginResponse {
 }
 
 export const api = {
-  getPublicMeta: () =>
-    request<{ venues: ApiAppState['venues']; settings: ApiAppState['settings'] }>('/api/public/meta'),
-  lookupBooking: (bookingNumber: string) =>
-    request<import('../types').Booking>(
-      `/api/public/bookings/${encodeURIComponent(bookingNumber.trim().toUpperCase())}`,
-    ),
   login: (body: { email: string; password: string; remember?: boolean }) =>
     request<LoginResponse>('/api/auth/login', { method: 'POST', body: JSON.stringify(body) }),
   logout: () => request<{ ok: boolean }>('/api/auth/logout', { method: 'POST' }),
@@ -102,8 +96,6 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
-  submitInquiry: (body: unknown) =>
-    request<import('../types').Booking>('/api/inquiries', { method: 'POST', body: JSON.stringify(body) }),
   addExpense: (body: unknown) =>
     request<import('../types').Expense>('/api/expenses', { method: 'POST', body: JSON.stringify(body) }),
   addBookingServiceItem: (id: string, body: unknown) =>

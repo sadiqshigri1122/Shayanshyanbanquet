@@ -55,16 +55,6 @@ export async function getBookingById(id: string) {
   return mapBooking(row);
 }
 
-export async function getBookingByNumber(bookingNumber: string) {
-  const normalized = bookingNumber.trim().toUpperCase();
-  const row = await prisma.booking.findFirst({
-    where: { bookingNumber: normalized },
-    include: { customer: true, lineItems: true },
-  });
-  if (!row) throw new ApiError('Booking not found', 404);
-  return mapBooking(row);
-}
-
 export async function checkAvailability(venueId: string, date: string, excludeBookingId?: string) {
   const settings = await getSettings();
   const bookings = await prisma.booking.findMany({
@@ -554,89 +544,6 @@ function lineItemsToInput(
     enteredAt: s.enteredAt ?? undefined,
     isEventDayAddition: s.isEventDayAddition,
   }));
-}
-
-export async function submitInquiry(data: {
-  name: string;
-  phone: string;
-  email?: string;
-  venueId: string;
-  functionDate: string;
-  programme: string;
-  numberOfGuests: number;
-  message?: string;
-}) {
-  const venue = await prisma.venue.findUnique({ where: { id: data.venueId } });
-  if (!venue) throw new ApiError('Venue not found', 404);
-
-  const phone = data.phone.trim();
-  const name = sanitizeText(data.name, 200);
-
-  let customer = await prisma.customer.findFirst({ where: { phone } });
-  if (!customer) {
-    customer = await prisma.customer.create({
-      data: {
-        id: `c${Date.now()}`,
-        name,
-        phone,
-        email: data.email?.trim().toLowerCase(),
-        address: 'Not provided',
-        createdAt: new Date().toISOString().split('T')[0],
-      },
-    });
-  }
-
-  const maxSerial = await prisma.booking.aggregate({ _max: { serialNumber: true } });
-  const serial = (maxSerial._max.serialNumber ?? 0) + 1;
-  const now = new Date().toISOString();
-  const bookingId = `b${Date.now()}`;
-  const bookingNumber = generateBookingNumber(serial);
-
-  const booking = await prisma.booking.create({
-    data: {
-      id: bookingId,
-      bookingNumber,
-      serialNumber: serial,
-      bookingDate: now.split('T')[0],
-      customerId: customer.id,
-      venueId: data.venueId,
-      venueName: venue.name,
-      functionDate: data.functionDate,
-      functionDay: getDayName(data.functionDate),
-      programme: data.programme,
-      numberOfGuests: data.numberOfGuests,
-      specialInstructions: data.message,
-      subtotal: 0,
-      discount: 0,
-      taxAmount: 0,
-      grandTotal: 0,
-      advancePaid: 0,
-      remainingBalance: 0,
-      status: 'inquiry',
-      paymentStatus: 'pending',
-      createdBy: 'Website Inquiry',
-      createdAt: now,
-      updatedAt: now,
-    },
-    include: { customer: true, lineItems: true },
-  });
-
-  await appendAuditLog({
-    action: 'Inquiry Submitted',
-    entity: 'Booking',
-    entityId: bookingNumber,
-    performedBy: data.name,
-    details: `Online inquiry for ${data.programme} — ${data.numberOfGuests} guests`,
-  });
-
-  await appendNotification({
-    title: 'New Booking Inquiry',
-    message: `${data.name} submitted inquiry for ${venue.name} on ${data.functionDate}`,
-    type: 'info',
-    link: '/office/bookings',
-  });
-
-  return mapBooking(booking);
 }
 
 export async function addExpense(data: {
