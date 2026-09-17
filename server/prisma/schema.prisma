@@ -8,13 +8,14 @@ datasource db {
 }
 
 model User {
-  id        String   @id
-  name      String
-  email     String   @unique
-  role      String
-  phone     String?
-  isActive  Boolean  @default(true)
-  createdAt String
+  id           String   @id
+  name         String
+  email        String   @unique
+  role         String
+  phone        String?
+  passwordHash String?
+  isActive     Boolean  @default(true)
+  createdAt    String
 }
 
 model Customer {

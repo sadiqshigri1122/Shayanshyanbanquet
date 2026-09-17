@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { rateLimit } from '../middleware/rateLimit.js';
 import { requireAuth } from '../middleware/auth.js';
 import { destroySession, login } from '../services/authService.js';
+import { changeOwnPassword } from '../services/userService.js';
 import { ApiError } from '../services/bookingService.js';
 
 export const authRouter = Router();
@@ -62,4 +63,20 @@ authRouter.get(
   '/me',
   requireAuth,
   handle(async (req) => ({ user: req.user })),
+);
+
+authRouter.post(
+  '/change-password',
+  requireAuth,
+  handle(async (req) => {
+    const body = z
+      .object({
+        currentPassword: z.string().min(1),
+        newPassword: z.string().min(8),
+      })
+      .parse(req.body);
+    await changeOwnPassword(req.user!.id, body.currentPassword, body.newPassword);
+    await destroySession(extractToken(req));
+    return { ok: true, message: 'Password updated. Please sign in again.' };
+  }),
 );

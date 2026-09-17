@@ -1,9 +1,8 @@
 import { randomBytes } from 'crypto';
 import { prisma } from '../lib/prisma.js';
+import { verifyPassword } from '../lib/password.js';
 import { isUserRole, type UserRole } from '../lib/rbac.js';
 import { ApiError } from './bookingService.js';
-
-const DEMO_PASSWORD = process.env.DEMO_PASSWORD ?? 'shayan123';
 const SESSION_TTL_MS = Number(process.env.SESSION_TTL_MS ?? 8 * 60 * 60 * 1000);
 const REMEMBER_TTL_MS = Number(process.env.REMEMBER_TTL_MS ?? 30 * 24 * 60 * 60 * 1000);
 
@@ -80,7 +79,12 @@ export async function login(
 
   if (!row) throw new ApiError('No account found with that email address.', 401);
   if (!row.isActive) throw new ApiError('This account has been deactivated. Contact your administrator.', 403);
-  if (password !== DEMO_PASSWORD) throw new ApiError('Incorrect password. Please try again.', 401);
+  if (!row.passwordHash) {
+    throw new ApiError('Account password not configured. Contact your administrator.', 403);
+  }
+
+  const valid = await verifyPassword(password, row.passwordHash);
+  if (!valid) throw new ApiError('Incorrect password. Please try again.', 401);
   if (!isUserRole(row.role)) throw new ApiError('Invalid user role configuration.', 500);
 
   const user: SessionUser = {

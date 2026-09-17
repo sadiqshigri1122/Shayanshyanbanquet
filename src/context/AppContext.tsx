@@ -94,6 +94,10 @@ interface AppContextType extends AppState {
   getBookingByNumber: (number: string) => Booking | undefined;
   getNextSerial: () => number;
   updateSettings: (settings: Partial<SystemSettings>) => Promise<void>;
+  resetUserPassword: (
+    userId: string,
+    newPassword: string,
+  ) => Promise<{ ok: true } | { ok: false; error: string }>;
   submitInquiry: (data: InquiryInput) => Promise<Booking>;
   updateBookingCharges: (
     bookingId: string,
@@ -932,6 +936,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, currentUser: user }));
   }, []);
 
+  const resetUserPassword = useCallback(
+    async (userId: string, newPassword: string) => {
+      if (USE_API) {
+        try {
+          await api.resetUserPassword(userId, newPassword);
+          return { ok: true as const };
+        } catch (err) {
+          return {
+            ok: false as const,
+            error: err instanceof Error ? err.message : 'Failed to reset password',
+          };
+        }
+      }
+      return { ok: false as const, error: 'Password reset requires API mode.' };
+    },
+    [],
+  );
+
   const login = useCallback(
     async (email: string, password: string, remember = true) => {
       if (USE_API) {
@@ -1405,6 +1427,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     getBookingByNumber,
     getNextSerial,
     updateSettings,
+    resetUserPassword,
     submitInquiry,
     updateBookingCharges,
     addBookingServiceItem,

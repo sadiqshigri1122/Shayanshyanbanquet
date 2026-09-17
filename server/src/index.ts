@@ -2,6 +2,7 @@ import cors from 'cors';
 import express from 'express';
 import { apiRouter } from './routes/api.js';
 import { purgeExpiredSessions } from './services/authService.js';
+import { backfillMissingPasswordHashes } from './services/userService.js';
 import { startEventReminderScheduler } from './services/eventReminderService.js';
 
 const app = express();
@@ -50,5 +51,10 @@ app.use('/api', apiRouter);
 app.listen(port, '0.0.0.0', () => {
   console.log(`Shayan Banquet API listening on http://0.0.0.0:${port}`);
   void purgeExpiredSessions().catch((err) => console.error('Session cleanup failed:', err));
+  void backfillMissingPasswordHashes()
+    .then((count) => {
+      if (count > 0) console.log(`Backfilled password hashes for ${count} user(s).`);
+    })
+    .catch((err) => console.error('Password backfill failed:', err));
   startEventReminderScheduler();
 });

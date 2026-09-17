@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { hashPassword } from '../src/lib/password.js';
 import { HALLS } from '../src/lib/venueConfig.js';
 
 const prisma = new PrismaClient();
@@ -18,19 +19,33 @@ async function main() {
   await prisma.booking.deleteMany();
   await prisma.expenseRecord.deleteMany();
   await prisma.customer.deleteMany();
+  await prisma.authSession.deleteMany();
   await prisma.user.deleteMany();
   await prisma.venue.deleteMany();
   await prisma.service.deleteMany();
   await prisma.systemSettingsRecord.deleteMany();
 
-  await prisma.user.createMany({
-    data: [
-      { id: 'u1', name: 'Ahmed Khan', email: 'ahmed@shayanbanquet.pk', role: 'booking_office', phone: '0300-1234567', isActive: true, createdAt: '2026-01-15' },
-      { id: 'u2', name: 'Ali Hassan', email: 'ali@shayanbanquet.pk', role: 'manager', phone: '0321-9876543', isActive: true, createdAt: '2026-01-10' },
-      { id: 'u3', name: 'Admin', email: 'admin@shayanbanquet.pk', role: 'super_admin', isActive: true, createdAt: '2025-12-01' },
-      { id: 'u4', name: 'Sara Bibi', email: 'sara@shayanbanquet.pk', role: 'booking_office', phone: '0333-1112233', isActive: true, createdAt: '2026-03-01' },
-    ],
-  });
+  const userSeeds = [
+    { id: 'u1', name: 'Ahmed Khan', email: 'ahmed@shayanbanquet.pk', role: 'booking_office', phone: '0300-1234567', password: 'Office@2026', isActive: true, createdAt: '2026-01-15' },
+    { id: 'u2', name: 'Ali Hassan', email: 'ali@shayanbanquet.pk', role: 'manager', phone: '0321-9876543', password: 'Manager@2026', isActive: true, createdAt: '2026-01-10' },
+    { id: 'u3', name: 'Admin', email: 'admin@shayanbanquet.pk', role: 'super_admin', password: 'Admin@2026', isActive: true, createdAt: '2025-12-01' },
+    { id: 'u4', name: 'Sara Bibi', email: 'sara@shayanbanquet.pk', role: 'booking_office', phone: '0333-1112233', password: 'Office2@2026', isActive: true, createdAt: '2026-03-01' },
+  ] as const;
+
+  for (const user of userSeeds) {
+    await prisma.user.create({
+      data: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        phone: user.phone,
+        isActive: user.isActive,
+        createdAt: user.createdAt,
+        passwordHash: await hashPassword(user.password),
+      },
+    });
+  }
 
   const hallMeta: Record<string, { capacity: number; basePrice: number; location: string; description: string }> = {
     'va-red': { capacity: 200, basePrice: 50000, location: 'Hall A — Red Section', description: 'Hall A Red section.' },

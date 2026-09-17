@@ -30,6 +30,7 @@ import {
   updateSettings,
 } from '../services/stateService.js';
 import { authRouter } from './auth.js';
+import { setUserPassword } from '../services/userService.js';
 
 export const apiRouter = Router();
 
@@ -303,6 +304,20 @@ apiRouter.post(
   handle(async (req) => {
     z.object({ by: z.string().optional() }).parse(req.body);
     return deleteEventExpense(paramId(req), actorName(req));
+  }),
+);
+
+apiRouter.patch(
+  '/users/:id/password',
+  ...adminOnly,
+  handle(async (req) => {
+    const body = z
+      .object({
+        newPassword: z.string().min(8),
+      })
+      .parse(req.body);
+    await setUserPassword(paramId(req), body.newPassword);
+    return { ok: true };
   }),
 );
 

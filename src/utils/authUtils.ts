@@ -5,7 +5,14 @@ import {
   type DashboardRole,
 } from './staffRoutes';
 
-export const DEMO_PASSWORD = 'shayan123';
+/** Local demo passwords — production uses hashed passwords in the database. */
+const LOCAL_PASSWORDS: Record<string, string> = {
+  'ahmed@shayanbanquet.pk': 'Office@2026',
+  'ali@shayanbanquet.pk': 'Manager@2026',
+  'admin@shayanbanquet.pk': 'Admin@2026',
+  'sara@shayanbanquet.pk': 'Office2@2026',
+};
+
 const AUTH_STORAGE_KEY = 'shayan-auth';
 
 export interface StoredAuth {
@@ -54,7 +61,8 @@ export function authenticateUser(
     return { ok: false, error: 'This account has been deactivated. Contact your administrator.' };
   }
 
-  if (password !== DEMO_PASSWORD) {
+  const expected = LOCAL_PASSWORDS[normalizedEmail];
+  if (!expected || password !== expected) {
     return { ok: false, error: 'Incorrect password. Please try again.' };
   }
 

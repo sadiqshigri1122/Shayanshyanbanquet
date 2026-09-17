@@ -135,6 +135,16 @@ export const api = {
     request<{ ok: boolean }>(`/api/notifications/${id}/read`, { method: 'PATCH' }),
   markAllNotificationsRead: () =>
     request<{ ok: boolean }>('/api/notifications/read-all', { method: 'POST' }),
+  resetUserPassword: (userId: string, newPassword: string) =>
+    request<{ ok: boolean }>(`/api/users/${encodeURIComponent(userId)}/password`, {
+      method: 'PATCH',
+      body: JSON.stringify({ newPassword }),
+    }),
+  changePassword: (body: { currentPassword: string; newPassword: string }) =>
+    request<{ ok: boolean; message?: string }>('/api/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
 };
 
 export async function refreshAppStateFromApi(): Promise<ApiAppState> {
