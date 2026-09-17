@@ -30,7 +30,7 @@ import {
   updateSettings,
 } from '../services/stateService.js';
 import { authRouter } from './auth.js';
-import { setUserPassword } from '../services/userService.js';
+import { createUser, deleteUser, setUserPassword, updateUser } from '../services/userService.js';
 
 export const apiRouter = Router();
 
@@ -304,6 +304,50 @@ apiRouter.post(
   handle(async (req) => {
     z.object({ by: z.string().optional() }).parse(req.body);
     return deleteEventExpense(paramId(req), actorName(req));
+  }),
+);
+
+apiRouter.post(
+  '/users',
+  ...adminOnly,
+  handle(async (req) => {
+    const body = z
+      .object({
+        name: z.string().min(1).max(100),
+        email: z.string().email(),
+        role: z.enum(['booking_office', 'manager', 'super_admin']),
+        phone: z.string().max(30).optional(),
+        password: z.string().min(8),
+        isActive: z.boolean().optional(),
+      })
+      .parse(req.body);
+    return createUser(body);
+  }),
+);
+
+apiRouter.patch(
+  '/users/:id',
+  ...adminOnly,
+  handle(async (req) => {
+    const body = z
+      .object({
+        name: z.string().min(1).max(100).optional(),
+        email: z.string().email().optional(),
+        role: z.enum(['booking_office', 'manager', 'super_admin']).optional(),
+        phone: z.string().max(30).nullable().optional(),
+        isActive: z.boolean().optional(),
+      })
+      .parse(req.body);
+    return updateUser(paramId(req), body, req.user!.id);
+  }),
+);
+
+apiRouter.delete(
+  '/users/:id',
+  ...adminOnly,
+  handle(async (req) => {
+    await deleteUser(paramId(req), req.user!.id);
+    return { ok: true };
   }),
 );
 

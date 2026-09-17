@@ -21,6 +21,7 @@ import type {
   BookingStatus,
   PaymentMethod,
   User,
+  UserRole,
   Venue,
 } from '../types';
 import {
@@ -98,6 +99,19 @@ interface AppContextType extends AppState {
     userId: string,
     newPassword: string,
   ) => Promise<{ ok: true } | { ok: false; error: string }>;
+  createUser: (input: {
+    name: string;
+    email: string;
+    role: UserRole;
+    phone?: string;
+    password: string;
+    isActive?: boolean;
+  }) => Promise<{ ok: true; user: User } | { ok: false; error: string }>;
+  updateUser: (
+    userId: string,
+    input: Partial<{ name: string; email: string; role: UserRole; phone: string | null; isActive: boolean }>,
+  ) => Promise<{ ok: true; user: User } | { ok: false; error: string }>;
+  deleteUser: (userId: string) => Promise<{ ok: true } | { ok: false; error: string }>;
   submitInquiry: (data: InquiryInput) => Promise<Booking>;
   updateBookingCharges: (
     bookingId: string,
@@ -954,6 +968,73 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const createUser = useCallback(
+    async (input: {
+      name: string;
+      email: string;
+      role: UserRole;
+      phone?: string;
+      password: string;
+      isActive?: boolean;
+    }) => {
+      if (USE_API) {
+        try {
+          const user = await api.createUser(input);
+          await refreshFromApi();
+          return { ok: true as const, user };
+        } catch (err) {
+          return {
+            ok: false as const,
+            error: err instanceof Error ? err.message : 'Failed to create user',
+          };
+        }
+      }
+      return { ok: false as const, error: 'User management requires API mode.' };
+    },
+    [refreshFromApi],
+  );
+
+  const updateUser = useCallback(
+    async (
+      userId: string,
+      input: Partial<{ name: string; email: string; role: UserRole; phone: string | null; isActive: boolean }>,
+    ) => {
+      if (USE_API) {
+        try {
+          const user = await api.updateUser(userId, input);
+          await refreshFromApi();
+          return { ok: true as const, user };
+        } catch (err) {
+          return {
+            ok: false as const,
+            error: err instanceof Error ? err.message : 'Failed to update user',
+          };
+        }
+      }
+      return { ok: false as const, error: 'User management requires API mode.' };
+    },
+    [refreshFromApi],
+  );
+
+  const deleteUser = useCallback(
+    async (userId: string) => {
+      if (USE_API) {
+        try {
+          await api.deleteUser(userId);
+          await refreshFromApi();
+          return { ok: true as const };
+        } catch (err) {
+          return {
+            ok: false as const,
+            error: err instanceof Error ? err.message : 'Failed to delete user',
+          };
+        }
+      }
+      return { ok: false as const, error: 'User management requires API mode.' };
+    },
+    [refreshFromApi],
+  );
+
   const login = useCallback(
     async (email: string, password: string, remember = true) => {
       if (USE_API) {
@@ -1428,6 +1509,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     getNextSerial,
     updateSettings,
     resetUserPassword,
+    createUser,
+    updateUser,
+    deleteUser,
     submitInquiry,
     updateBookingCharges,
     addBookingServiceItem,

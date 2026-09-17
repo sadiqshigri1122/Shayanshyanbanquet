@@ -135,6 +135,30 @@ export const api = {
     request<{ ok: boolean }>(`/api/notifications/${id}/read`, { method: 'PATCH' }),
   markAllNotificationsRead: () =>
     request<{ ok: boolean }>('/api/notifications/read-all', { method: 'POST' }),
+  createUser: (body: {
+    name: string;
+    email: string;
+    role: import('../types').UserRole;
+    phone?: string;
+    password: string;
+    isActive?: boolean;
+  }) => request<import('../types').User>('/api/users', { method: 'POST', body: JSON.stringify(body) }),
+  updateUser: (
+    userId: string,
+    body: Partial<{
+      name: string;
+      email: string;
+      role: import('../types').UserRole;
+      phone: string | null;
+      isActive: boolean;
+    }>,
+  ) =>
+    request<import('../types').User>(`/api/users/${encodeURIComponent(userId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+  deleteUser: (userId: string) =>
+    request<{ ok: boolean }>(`/api/users/${encodeURIComponent(userId)}`, { method: 'DELETE' }),
   resetUserPassword: (userId: string, newPassword: string) =>
     request<{ ok: boolean }>(`/api/users/${encodeURIComponent(userId)}/password`, {
       method: 'PATCH',
