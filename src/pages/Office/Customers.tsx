@@ -33,7 +33,7 @@ export default function Customers() {
 
   return (
     <div className="animate-fade-in space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-primary">Customers</h1>
           {!can('create_customer') && (
@@ -41,7 +41,7 @@ export default function Customers() {
           )}
         </div>
         {can('create_customer') && (
-          <button onClick={() => setShowNew(true)} className="btn-primary flex items-center gap-1 !px-4 !py-2 !rounded-lg text-sm"><Plus size={16} /> New Customer</button>
+          <button onClick={() => setShowNew(true)} className="btn-primary flex items-center justify-center gap-1 !px-4 !py-2.5 !rounded-lg text-sm w-full sm:w-auto"><Plus size={16} /> New Customer</button>
         )}
       </div>
 

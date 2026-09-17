@@ -175,7 +175,7 @@ export default function BookingDetail() {
         <div className="lg:col-span-2 space-y-6">
           <div className="card space-y-3 text-sm">
             <h2 className="font-bold text-primary">Event & Customer</h2>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <p><span className="text-muted">Customer:</span> <strong>{booking.customer.name}</strong></p>
               <p><span className="text-muted">Phone:</span> {booking.customer.phone}</p>
               <p><span className="text-muted">Venue:</span> {booking.venueName}</p>
@@ -190,27 +190,29 @@ export default function BookingDetail() {
             {booking.services.length === 0 ? (
               <p className="text-sm text-warning bg-warning/10 p-3 rounded-lg">No charges yet — use Edit Full Bill to enter amounts.</p>
             ) : (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-gray-50">
-                    <th className="text-left py-2 px-2">Item</th>
-                    <th className="text-right py-2 px-2">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {booking.services.map((s, i) => (
-                    <tr key={i} className={`border-b border-gray-50 ${s.isEventDayAddition ? 'bg-secondary-light/20' : ''}`}>
-                      <td className="py-2 px-2 font-medium">
-                        {s.serviceName}
-                        {s.isEventDayAddition && (
-                          <span className="ml-1 text-[10px] font-bold uppercase text-secondary">Extra</span>
-                        )}
-                      </td>
-                      <td className="py-2 px-2 text-right font-semibold">{formatCurrency(s.total)}</td>
+              <div className="table-scroll">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-gray-50">
+                      <th className="text-left py-2 px-2">Item</th>
+                      <th className="text-right py-2 px-2">Amount</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {booking.services.map((s, i) => (
+                      <tr key={i} className={`border-b border-gray-50 ${s.isEventDayAddition ? 'bg-secondary-light/20' : ''}`}>
+                        <td className="py-2 px-2 font-medium">
+                          {s.serviceName}
+                          {s.isEventDayAddition && (
+                            <span className="ml-1 text-[10px] font-bold uppercase text-secondary">Extra</span>
+                          )}
+                        </td>
+                        <td className="py-2 px-2 text-right font-semibold">{formatCurrency(s.total)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
             {billing && billing.additionalItems > 0 && (
               <p className="text-xs text-muted mt-2">Extra items added on event day: {formatCurrency(billing.additionalItems)}</p>
@@ -222,24 +224,26 @@ export default function BookingDetail() {
             {bookingPayments.length === 0 ? (
               <p className="text-gray-400 text-sm">No payments yet</p>
             ) : (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-gray-50 text-left">
-                    <th className="py-2 px-2">Date</th>
-                    <th className="py-2 px-2 text-right">Amount</th>
-                    <th className="py-2 px-2">Method</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {bookingPayments.map((p) => (
-                    <tr key={p.id} className="border-b border-gray-50">
-                      <td className="py-2 px-2">{p.paymentDate}</td>
-                      <td className="py-2 px-2 text-right font-bold text-success">{formatCurrency(p.amount)}</td>
-                      <td className="py-2 px-2 capitalize">{p.method.replace('_', ' ')}</td>
+              <div className="table-scroll">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-gray-50 text-left">
+                      <th className="py-2 px-2">Date</th>
+                      <th className="py-2 px-2 text-right">Amount</th>
+                      <th className="py-2 px-2">Method</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {bookingPayments.map((p) => (
+                      <tr key={p.id} className="border-b border-gray-50">
+                        <td className="py-2 px-2">{p.paymentDate}</td>
+                        <td className="py-2 px-2 text-right font-bold text-success">{formatCurrency(p.amount)}</td>
+                        <td className="py-2 px-2 capitalize">{p.method.replace('_', ' ')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
 

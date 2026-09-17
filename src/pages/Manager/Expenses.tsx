@@ -19,12 +19,12 @@ export default function Expenses() {
 
   return (
     <div className="animate-fade-in space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-primary">Expenses</h1>
           <p className="text-sm text-muted">Total approved: {formatCurrency(total)}</p>
         </div>
-        <button onClick={() => setShowForm(true)} className="btn-primary !px-4 !py-2 !rounded-lg text-sm">+ Add Expense</button>
+        <button onClick={() => setShowForm(true)} className="btn-primary !px-4 !py-2.5 !rounded-lg text-sm w-full sm:w-auto">+ Add Expense</button>
       </div>
 
       <div className="card !p-0 overflow-x-auto">

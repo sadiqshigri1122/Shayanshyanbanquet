@@ -181,12 +181,12 @@ export default function EventDayReport() {
 
       {/* Customer Billing */}
       <section className="card space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <h2 className="font-bold text-primary text-lg">Customer Bill</h2>
           {editable && (
             <button
               onClick={() => setShowAddItem(true)}
-              className="flex items-center gap-1 px-3 py-1.5 bg-secondary text-white rounded-lg text-sm font-semibold print:hidden"
+              className="flex items-center justify-center gap-1 px-3 py-2.5 bg-secondary text-white rounded-lg text-sm font-semibold print:hidden w-full sm:w-auto"
             >
               <Plus size={14} /> Add Item / Service
             </button>
@@ -219,6 +219,7 @@ export default function EventDayReport() {
         {original.length > 0 && (
           <div>
             <h3 className="text-xs font-semibold text-muted uppercase tracking-wide mb-2">Original Items</h3>
+            <div className="table-scroll">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-gray-50">
@@ -235,12 +236,14 @@ export default function EventDayReport() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         )}
 
         {additional.length > 0 && (
           <div>
             <h3 className="text-xs font-semibold text-secondary uppercase tracking-wide mb-2">Extra Items Added Today</h3>
+            <div className="table-scroll">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-secondary-light/30">
@@ -262,6 +265,7 @@ export default function EventDayReport() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         )}
 
@@ -272,7 +276,7 @@ export default function EventDayReport() {
 
       {/* Event Expenses */}
       <section className="card space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h2 className="font-bold text-primary text-lg">Office Costs</h2>
             <p className="text-xs text-muted mt-0.5">Internal business costs — not charged to customer</p>
@@ -284,7 +288,7 @@ export default function EventDayReport() {
                 setExpenseForm({ category: EVENT_EXPENSE_CATEGORIES[0], amount: '', description: '' });
                 setShowAddExpense(true);
               }}
-              className="flex items-center gap-1 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-semibold hover:bg-gray-50 print:hidden"
+              className="flex items-center justify-center gap-1 px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-sm font-semibold hover:bg-gray-50 print:hidden w-full sm:w-auto shrink-0"
             >
               <Plus size={14} /> Add Office Cost
             </button>
@@ -294,6 +298,7 @@ export default function EventDayReport() {
         {eventExpenses.length === 0 ? (
           <p className="text-sm text-gray-400 py-4 text-center">No event expenses recorded yet</p>
         ) : (
+          <div className="table-scroll">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-gray-50">
@@ -311,12 +316,12 @@ export default function EventDayReport() {
                   <td className="py-2 px-2 text-right font-semibold">{formatCurrency(e.amount)}</td>
                   {editable && (
                     <td className="py-2 px-2 text-right print:hidden">
-                      <button onClick={() => openEditExpense(e.id)} className="p-1 text-muted hover:text-secondary" title="Edit">
+                      <button onClick={() => openEditExpense(e.id)} className="touch-target inline-flex items-center justify-center text-muted hover:text-secondary" title="Edit">
                         <Edit3 size={14} />
                       </button>
                       <button
                         onClick={() => setDeleteExpenseId(e.id)}
-                        className="p-1 text-muted hover:text-danger ml-1"
+                        className="touch-target inline-flex items-center justify-center text-muted hover:text-danger ml-1"
                         title="Delete"
                       >
                         <Trash2 size={14} />
@@ -334,6 +339,7 @@ export default function EventDayReport() {
               </tr>
             </tfoot>
           </table>
+          </div>
         )}
       </section>
 
@@ -383,7 +389,7 @@ export default function EventDayReport() {
                 <option key={s} value={s} />
               ))}
             </datalist>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <input
                 type="number"
                 placeholder="Amount (Rs.)"

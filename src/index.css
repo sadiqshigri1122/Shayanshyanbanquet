@@ -224,6 +224,29 @@
 }
 
 @layer utilities {
+  .table-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-inline: -1rem;
+    padding-inline: 1rem;
+  }
+
+  @media (min-width: 640px) {
+    .table-scroll {
+      margin-inline: 0;
+      padding-inline: 0;
+    }
+  }
+
+  .table-scroll table {
+    min-width: 32rem;
+  }
+
+  .touch-target {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+  }
+
   .gradient-primary {
     background: linear-gradient(135deg, #0F4C75 0%, #1A5A8F 100%);
   }

@@ -170,14 +170,14 @@ export default function Reports() {
 
       {/* Report preview / print area */}
       {showPreview && (
-        <div className="card !p-0 overflow-hidden print:border-0 print:shadow-none">
+        <div className="card !p-0 overflow-x-auto print:border-0 print:shadow-none print:overflow-visible">
           <div className="p-4 border-b border-border bg-gray-50 no-print">
             <h2 className="font-bold text-primary text-sm">Report Preview</h2>
             <p className="text-xs text-muted mt-0.5">
               This preview matches the downloaded/printed PDF layout
             </p>
           </div>
-          <div className="p-4 lg:p-8 bg-gray-100 print:bg-white print:p-0">
+          <div className="p-4 lg:p-8 bg-gray-100 print:bg-white print:p-0 min-w-0">
             <BanquetReportDocument data={reportData} />
           </div>
         </div>

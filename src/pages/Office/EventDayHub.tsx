@@ -63,16 +63,18 @@ export default function EventDayHub() {
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-6 text-sm">
-          <div className="text-right">
-            <p className="text-xs text-muted">Final Bill</p>
-            <p className="font-bold">{formatCurrency(billing.finalBill)}</p>
+        <div className="flex items-center justify-between sm:justify-end gap-4 sm:gap-6 text-sm w-full md:w-auto">
+          <div className="grid grid-cols-2 gap-4 sm:flex sm:gap-6 flex-1 sm:flex-none">
+            <div className="text-left sm:text-right">
+              <p className="text-xs text-muted">Final Bill</p>
+              <p className="font-bold">{formatCurrency(billing.finalBill)}</p>
+            </div>
+            <div className="text-left sm:text-right">
+              <p className="text-xs text-muted">Balance</p>
+              <p className="font-bold text-danger">{formatCurrency(billing.remainingBalance)}</p>
+            </div>
           </div>
-          <div className="text-right">
-            <p className="text-xs text-muted">Balance</p>
-            <p className="font-bold text-danger">{formatCurrency(billing.remainingBalance)}</p>
-          </div>
-          <ChevronRight size={18} className="text-muted group-hover:text-secondary" />
+          <ChevronRight size={18} className="text-muted group-hover:text-secondary shrink-0 hidden sm:block" />
         </div>
       </Link>
     );

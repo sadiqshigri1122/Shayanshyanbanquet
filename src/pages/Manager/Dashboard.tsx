@@ -54,7 +54,7 @@ export default function ManagerDashboard() {
 
       <div>
         <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Booking KPIs</h2>
-        <div className="grid grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {[
             { label: 'Total', value: kpis.totalBookings, color: 'border-l-primary' },
             { label: 'Confirmed', value: kpis.confirmedBookings, color: 'border-l-success' },
@@ -93,12 +93,12 @@ export default function ManagerDashboard() {
           })}
         </div>
 
-        <div className="mt-4 bg-gradient-to-r from-primary to-primary-light rounded-xl p-6 text-white flex items-center justify-between">
+        <div className="mt-4 bg-gradient-to-r from-primary to-primary-light rounded-xl p-4 sm:p-6 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <p className="text-white/60 text-sm font-medium">Estimated Net Revenue</p>
-            <p className="text-3xl font-bold mt-1">{formatCurrency(kpis.netRevenue)}</p>
+            <p className="text-2xl sm:text-3xl font-bold mt-1">{formatCurrency(kpis.netRevenue)}</p>
           </div>
-          <div className="flex items-center gap-2 bg-white/10 rounded-lg px-4 py-2">
+          <div className="flex items-center gap-2 bg-white/10 rounded-lg px-4 py-2 self-start sm:self-auto">
             <TrendingUp size={20} className="text-success" />
             <span className="text-success font-bold text-sm">Profitable</span>
           </div>
@@ -115,12 +115,12 @@ export default function ManagerDashboard() {
           </div>
           <div className="divide-y divide-gray-50">
             {pendingApprovals.map((a) => (
-              <div key={a.id} className="p-4 flex items-center justify-between">
-                <div>
+              <div key={a.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="min-w-0">
                   <p className="text-sm font-semibold text-primary capitalize">{a.requestType.replace('_', ' ')}</p>
                   <p className="text-xs text-muted">{a.details}</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 shrink-0">
                   <button onClick={() => approveRequest(a.id, true, 'Approved', currentUser.name)} className="px-3 py-1.5 bg-success text-white text-xs font-semibold rounded-lg">Approve</button>
                   <button onClick={() => approveRequest(a.id, false, 'Rejected', currentUser.name)} className="px-3 py-1.5 bg-gray-100 text-gray-600 text-xs font-semibold rounded-lg">Reject</button>
                 </div>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, CalendarDays, Users, CreditCard, Building2,
@@ -71,8 +71,17 @@ export default function DashboardLayout({ role }: Props) {
   const sidebarLinks = navByRole[role];
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [mobileOpen]);
+
   return (
-    <div className="dashboard-shell min-h-screen flex bg-surface-alt">
+    <div className="dashboard-shell min-h-screen flex bg-surface-alt overflow-x-hidden">
       {mobileOpen && (
         <div className="no-print fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={() => setMobileOpen(false)} />
       )}
@@ -128,8 +137,20 @@ export default function DashboardLayout({ role }: Props) {
         </nav>
 
         {!collapsed && (
-          <div className="px-4 py-3 border-t border-white/15 text-[10px] text-white/60">
-            <p>Signed in as {roleTitles[role]}. Sign out to switch roles.</p>
+          <div className="px-4 py-3 border-t border-white/15 text-[10px] text-white/60 space-y-3">
+            <p>Signed in as {roleTitles[role]}.</p>
+            <button
+              type="button"
+              onClick={() => {
+                setMobileOpen(false);
+                logout();
+                navigate('/login');
+              }}
+              className="lg:hidden w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-white/10 text-white text-xs font-semibold hover:bg-white/15"
+            >
+              <LogOut size={14} />
+              Sign out
+            </button>
           </div>
         )}
 
@@ -142,27 +163,44 @@ export default function DashboardLayout({ role }: Props) {
       </aside>
 
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="app-chrome no-print sticky top-0 z-30 h-14 bg-white border-b border-border flex items-center justify-between px-4 lg:px-6">
-          <div className="flex items-center gap-3">
-            <button onClick={() => setMobileOpen(true)} className="lg:hidden p-2 rounded hover:bg-surface-alt text-muted">
+        <header className="app-chrome no-print sticky top-0 z-30 min-h-14 bg-white border-b border-border flex items-center justify-between gap-2 px-3 sm:px-4 lg:px-6 py-2">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+            <button
+              onClick={() => setMobileOpen(true)}
+              className="lg:hidden touch-target flex items-center justify-center rounded hover:bg-surface-alt text-muted shrink-0"
+              aria-label="Open menu"
+            >
               <Menu size={20} />
             </button>
             {role === 'office' && <HeaderSearch />}
             {role !== 'office' && (
-              <div className="relative hidden sm:block">
-                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
-                <Link to={staffPath(role, '/bookings')} className="pl-9 pr-4 py-2 w-72 bg-surface-alt border border-border rounded text-sm text-text-tertiary block">
-                  Search bookings...
+              <>
+                <Link
+                  to={staffPath(role, '/bookings')}
+                  className="sm:hidden touch-target flex items-center justify-center rounded hover:bg-surface-alt text-muted shrink-0"
+                  aria-label="Search bookings"
+                >
+                  <Search size={20} />
                 </Link>
-              </div>
+                <div className="relative hidden sm:block min-w-0 max-w-[11rem] md:max-w-xs lg:w-72">
+                  <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
+                  <Link
+                    to={staffPath(role, '/bookings')}
+                    className="block pl-9 pr-4 py-2 w-full bg-surface-alt border border-border rounded text-sm text-text-tertiary truncate"
+                  >
+                    Search bookings...
+                  </Link>
+                </div>
+              </>
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             <div className="relative">
               <button
                 onClick={() => setShowNotifications(!showNotifications)}
-                className="relative p-2 rounded hover:bg-surface-alt text-muted"
+                className="relative touch-target flex items-center justify-center rounded hover:bg-surface-alt text-muted"
+                aria-label="Notifications"
               >
                 <Bell size={20} />
                 {unreadCount > 0 && (
@@ -173,7 +211,7 @@ export default function DashboardLayout({ role }: Props) {
               </button>
 
               {showNotifications && (
-                <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-border z-50 animate-fade-in">
+                <div className="absolute right-0 mt-2 w-[min(calc(100vw-1.5rem),20rem)] max-w-80 bg-white rounded-lg shadow-lg border border-border z-50 animate-fade-in">
                   <div className="p-3 border-b border-border flex justify-between items-center">
                     <h3 className="font-semibold text-sm text-text-primary">Notifications</h3>
                     <button onClick={markAllNotificationsRead} className="text-xs text-secondary font-semibold">Mark all read</button>
@@ -236,7 +274,7 @@ export default function DashboardLayout({ role }: Props) {
                 logout();
                 navigate('/login');
               }}
-              className="p-2 rounded hover:bg-surface-alt text-muted hidden md:flex items-center gap-1.5 text-xs font-medium"
+              className="touch-target rounded hover:bg-surface-alt text-muted hidden md:flex items-center gap-1.5 text-xs font-medium px-2"
               title="Sign out"
             >
               <LogOut size={16} />
@@ -270,7 +308,7 @@ export default function DashboardLayout({ role }: Props) {
           </div>
         </header>
 
-        <main className="dashboard-main flex-1 p-4 lg:p-6 overflow-y-auto max-w-[1400px] w-full mx-auto print:p-0">
+        <main className="dashboard-main flex-1 p-3 sm:p-4 lg:p-6 overflow-y-auto overflow-x-hidden max-w-[1400px] w-full mx-auto print:p-0">
           <DashboardProvider dashboard={role}>
             {apiLoading && bookings.length === 0 ? <DashboardLoading /> : <Outlet />}
           </DashboardProvider>

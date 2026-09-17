@@ -46,11 +46,11 @@ export default function ConfirmDialog({
 
   return (
     <div
-      className="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 animate-fade-in"
+      className="modal-overlay fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 animate-fade-in"
       onClick={onCancel}
     >
       <div
-        className="modal-panel bg-white rounded-2xl shadow-lg w-full max-w-md animate-fade-in"
+        className="modal-panel bg-white rounded-t-2xl sm:rounded-2xl shadow-lg w-full max-w-md animate-fade-in"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -60,7 +60,7 @@ export default function ConfirmDialog({
           <button
             onClick={onCancel}
             disabled={loading}
-            className="p-1.5 rounded-lg hover:bg-gray-100 text-muted disabled:opacity-50"
+            className="touch-target flex items-center justify-center rounded-lg hover:bg-gray-100 text-muted disabled:opacity-50"
             aria-label="Close"
           >
             <X size={18} />
@@ -83,18 +83,18 @@ export default function ConfirmDialog({
             </div>
           )}
 
-          <div className="mt-6 flex gap-3">
+          <div className="mt-6 flex flex-col-reverse sm:flex-row gap-3">
             <button
               onClick={onCancel}
               disabled={loading}
-              className="flex-1 py-2.5 px-4 rounded-lg border border-gray-200 text-sm font-semibold text-primary hover:bg-gray-50 disabled:opacity-50"
+              className="flex-1 py-3 px-4 rounded-lg border border-gray-200 text-sm font-semibold text-primary hover:bg-gray-50 disabled:opacity-50"
             >
               {cancelLabel}
             </button>
             <button
               onClick={onConfirm}
               disabled={loading}
-              className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold text-white disabled:opacity-50 ${
+              className={`flex-1 py-3 px-4 rounded-lg text-sm font-semibold text-white disabled:opacity-50 ${
                 variant === 'danger'
                   ? 'bg-danger hover:bg-danger/90'
                   : 'bg-primary hover:bg-primary-hover'

@@ -64,8 +64,8 @@ export default function PrintBookingSlip({ booking, onClose }: PrintBookingSlipP
   const handlePrint = () => printDocument();
 
   return (
-    <div>
-      <div className="no-print flex gap-2 mb-4">
+    <div className="min-w-0 overflow-x-auto">
+      <div className="no-print flex flex-wrap gap-2 mb-4">
         <button onClick={handlePrint} className="px-4 py-2 bg-gold text-white rounded-lg text-sm font-semibold hover:bg-gold-dark">
           Print / Save PDF
         </button>
@@ -79,7 +79,7 @@ export default function PrintBookingSlip({ booking, onClose }: PrintBookingSlipP
       {/* Matches physical pink duplicate-book slip */}
       <div
         id="print-area"
-        className="relative mx-auto max-w-[210mm] bg-[#f8d7da] text-gray-900 p-6 print:p-4 print:shadow-none shadow-md border border-pink-200 print:border-0"
+        className="relative mx-auto w-full max-w-full sm:max-w-[210mm] bg-[#f8d7da] text-gray-900 p-4 sm:p-6 print:p-4 print:shadow-none shadow-md border border-pink-200 print:border-0"
         style={{ fontFamily: "'Times New Roman', Georgia, serif" }}
       >
         {/* Watermark */}
