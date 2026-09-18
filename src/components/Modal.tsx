@@ -35,7 +35,7 @@ export default function Modal({ title, children, onClose, wide }: ModalProps) {
             <X size={20} />
           </button>
         </div>
-        <div className="modal-body p-4 sm:p-5 overflow-x-auto">{children}</div>
+        <div className="modal-body p-4 sm:p-5 pb-6 sm:pb-5 overflow-x-auto">{children}</div>
       </div>
     </div>,
     document.body,

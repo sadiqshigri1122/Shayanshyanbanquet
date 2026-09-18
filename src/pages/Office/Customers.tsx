@@ -4,6 +4,7 @@ import { Plus } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useDashboard } from '../../context/DashboardContext';
 import Modal from '../../components/Modal';
+import ModalField, { modalFormClass, modalInputClass } from '../../components/ModalField';
 import { staffBookingStatus } from '../../utils/staffLabels';
 
 export default function Customers() {
@@ -83,10 +84,25 @@ export default function Customers() {
 
       {showNew && (
         <Modal title="New Customer" onClose={() => setShowNew(false)}>
-          <div className="space-y-3">
-            {(['name', 'phone', 'cnic', 'fatherHusbandName', 'address', 'email'] as const).map((field) => (
-              <input key={field} placeholder={field.replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase())} value={form[field]} onChange={(e) => setForm({ ...form, [field]: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm" />
-            ))}
+          <div className={modalFormClass}>
+            <ModalField label="Full Name">
+              <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={modalInputClass} />
+            </ModalField>
+            <ModalField label="Phone">
+              <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className={modalInputClass} />
+            </ModalField>
+            <ModalField label="CNIC" hint="Optional">
+              <input value={form.cnic} onChange={(e) => setForm({ ...form, cnic: e.target.value })} className={modalInputClass} />
+            </ModalField>
+            <ModalField label="Father / Husband Name" hint="Optional">
+              <input value={form.fatherHusbandName} onChange={(e) => setForm({ ...form, fatherHusbandName: e.target.value })} className={modalInputClass} />
+            </ModalField>
+            <ModalField label="Address">
+              <input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className={modalInputClass} />
+            </ModalField>
+            <ModalField label="Email" hint="Optional">
+              <input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className={modalInputClass} />
+            </ModalField>
             <button onClick={handleCreate} disabled={!form.name || !form.phone || !form.address} className="btn-primary w-full !py-2.5 !rounded-lg disabled:opacity-50">Create</button>
           </div>
         </Modal>

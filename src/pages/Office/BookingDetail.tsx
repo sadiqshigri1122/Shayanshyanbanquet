@@ -10,6 +10,7 @@ import { isBookingFinanciallyEditable, computeEventBilling } from '../../utils/e
 import { manualRowsToServices, servicesToManualRows, type ManualLineItem } from '../../utils/manualPricing';
 import StatusBadge from '../../components/StatusBadge';
 import Modal from '../../components/Modal';
+import ModalField, { modalFormClass, modalInputClass, modalTextareaClass } from '../../components/ModalField';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import PrintBookingSlip from '../../components/PrintBookingSlip';
 import PrintReceipt from '../../components/PrintReceipt';
@@ -338,7 +339,7 @@ export default function BookingDetail() {
 
       {showEditCharges && (
         <Modal title="Edit Full Bill" onClose={() => { setShowEditCharges(false); clearActionParam(); }} wide>
-          <div className="space-y-4">
+          <div className={modalFormClass}>
             <p className="text-xs text-muted">Change original booking items and discount. For extras on event day, use the Event Day Workspace.</p>
             <ManualPricingTable
               rows={pricingRows}
@@ -351,12 +352,14 @@ export default function BookingDetail() {
               onAdvanceChange={() => {}}
               compact
             />
-            <input
-              placeholder="Note (optional)"
-              value={editReason}
-              onChange={(e) => setEditReason(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 text-sm"
-            />
+            <ModalField label="Note" hint="Optional">
+              <input
+                placeholder="Reason for bill change"
+                value={editReason}
+                onChange={(e) => setEditReason(e.target.value)}
+                className={modalInputClass}
+              />
+            </ModalField>
             <button onClick={handleSaveCharges} className="btn-primary w-full !py-2.5 !rounded-lg">Save Bill</button>
           </div>
         </Modal>
@@ -377,7 +380,7 @@ export default function BookingDetail() {
 
       {showCancelModal && (
         <Modal title="Request Cancellation" onClose={() => !canceling && setShowCancelModal(false)}>
-          <div className="space-y-4">
+          <div className={modalFormClass}>
             <p className="text-sm text-muted">
               This will send a cancellation request to the manager. The hall stays blocked until approved.
             </p>
@@ -387,14 +390,16 @@ export default function BookingDetail() {
                 {booking.bookingNumber} · {booking.functionDate} · {booking.venueName}
               </p>
             </div>
-            <textarea
-              placeholder="Reason for cancellation (optional)"
-              value={cancelReason}
-              onChange={(e) => setCancelReason(e.target.value)}
-              rows={3}
-              className="w-full border rounded-lg px-3 py-2 text-sm resize-none"
-            />
-            <div className="flex gap-3">
+            <ModalField label="Reason" hint="Optional">
+              <textarea
+                placeholder="Why is this booking being cancelled?"
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                rows={3}
+                className={modalTextareaClass}
+              />
+            </ModalField>
+            <div className="flex flex-col-reverse sm:flex-row gap-3 pt-1">
               <button
                 onClick={() => setShowCancelModal(false)}
                 disabled={canceling}

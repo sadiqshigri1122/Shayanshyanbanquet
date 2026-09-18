@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { AlertTriangle, Lock, Trash2, X } from 'lucide-react';
 import type { ReactNode } from 'react';
 
@@ -44,19 +46,28 @@ export default function ConfirmDialog({
         ? 'bg-primary/10 text-primary'
         : 'bg-warning/10 text-warning';
 
-  return (
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
+  return createPortal(
     <div
-      className="modal-overlay fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 animate-fade-in"
+      className="modal-overlay fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 animate-fade-in"
       onClick={onCancel}
+      role="presentation"
     >
       <div
-        className="modal-panel bg-white rounded-t-2xl sm:rounded-2xl shadow-lg w-full max-w-md animate-fade-in"
+        className="modal-panel bg-white rounded-t-2xl sm:rounded-2xl shadow-lg w-full max-w-md max-h-[92vh] sm:max-h-[90vh] overflow-y-auto animate-fade-in"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="confirm-dialog-title"
       >
-        <div className="flex justify-end p-3 pb-0">
+        <div className="flex justify-end p-3 pb-0 sticky top-0 bg-white rounded-t-2xl sm:rounded-t-2xl z-10">
           <button
             onClick={onCancel}
             disabled={loading}
@@ -67,7 +78,7 @@ export default function ConfirmDialog({
           </button>
         </div>
 
-        <div className="px-6 pb-6 pt-2 text-center">
+        <div className="px-5 sm:px-6 pb-6 pt-1 text-center">
           <div className={`mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full ${iconStyles}`}>
             {IconComponent ? <IconComponent size={26} strokeWidth={2} /> : icon}
           </div>
@@ -105,6 +116,7 @@ export default function ConfirmDialog({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

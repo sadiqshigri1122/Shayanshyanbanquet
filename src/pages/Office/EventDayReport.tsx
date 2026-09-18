@@ -15,6 +15,7 @@ import { CUSTOM_CHARGE_SUGGESTIONS } from '../../utils/manualPricing';
 import { EVENT_EXPENSE_CATEGORIES } from '../../types';
 import StatusBadge from '../../components/StatusBadge';
 import Modal from '../../components/Modal';
+import ModalField, { modalFormClass, modalInputClass, modalSelectClass } from '../../components/ModalField';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import PaymentModal from '../../components/PaymentModal';
 import { printDocument } from '../../utils/printDocument';
@@ -375,43 +376,49 @@ export default function EventDayReport() {
       {/* Add Item Modal */}
       {showAddItem && (
         <Modal title="+ Add Item / Service" onClose={() => setShowAddItem(false)}>
-          <div className="space-y-3">
+          <div className={modalFormClass}>
             <p className="text-xs text-muted">This item will be added to the customer&apos;s final bill.</p>
-            <input
-              placeholder="Particular / Service name"
-              value={itemForm.particular}
-              onChange={(e) => setItemForm({ ...itemForm, particular: e.target.value })}
-              className="w-full border rounded-lg px-3 py-2 text-sm"
-              list="item-suggestions"
-            />
+            <ModalField label="Particular / Service">
+              <input
+                placeholder="Service name"
+                value={itemForm.particular}
+                onChange={(e) => setItemForm({ ...itemForm, particular: e.target.value })}
+                className={modalInputClass}
+                list="item-suggestions"
+              />
+            </ModalField>
             <datalist id="item-suggestions">
               {CUSTOM_CHARGE_SUGGESTIONS.map((s) => (
                 <option key={s} value={s} />
               ))}
             </datalist>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <input
-                type="number"
-                placeholder="Amount (Rs.)"
-                value={itemForm.amount}
-                onChange={(e) => setItemForm({ ...itemForm, amount: e.target.value })}
-                className="w-full border rounded-lg px-3 py-2 text-sm"
-              />
-              <input
-                type="number"
-                placeholder="Guests (optional)"
-                value={itemForm.guestCount}
-                onChange={(e) => setItemForm({ ...itemForm, guestCount: e.target.value })}
-                className="w-full border rounded-lg px-3 py-2 text-sm"
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <ModalField label="Amount (Rs.)">
+                <input
+                  type="number"
+                  placeholder="Enter amount"
+                  value={itemForm.amount}
+                  onChange={(e) => setItemForm({ ...itemForm, amount: e.target.value })}
+                  className={modalInputClass}
+                />
+              </ModalField>
+              <ModalField label="Guests" hint="Optional">
+                <input
+                  type="number"
+                  placeholder="Guest count"
+                  value={itemForm.guestCount}
+                  onChange={(e) => setItemForm({ ...itemForm, guestCount: e.target.value })}
+                  className={modalInputClass}
+                />
+              </ModalField>
             </div>
-            <div className="flex flex-wrap gap-1">
+            <div className="flex flex-wrap gap-1.5">
               {CUSTOM_CHARGE_SUGGESTIONS.slice(0, 6).map((s) => (
                 <button
                   key={s}
                   type="button"
                   onClick={() => setItemForm({ ...itemForm, particular: s })}
-                  className="text-xs px-2 py-1 bg-surface-alt rounded-full hover:bg-secondary-light"
+                  className="text-xs px-2.5 py-1 bg-surface-alt rounded-full hover:bg-secondary-light"
                 >
                   {s}
                 </button>
@@ -425,30 +432,36 @@ export default function EventDayReport() {
       {/* Add/Edit Expense Modal */}
       {showAddExpense && (
         <Modal title={editingExpenseId ? 'Edit Event Expense' : 'Add Event Expense'} onClose={() => { setShowAddExpense(false); setEditingExpenseId(null); }}>
-          <div className="space-y-3">
+          <div className={modalFormClass}>
             <p className="text-xs text-muted">Business cost only — will NOT change the customer bill.</p>
-            <select
-              value={expenseForm.category}
-              onChange={(e) => setExpenseForm({ ...expenseForm, category: e.target.value })}
-              className="w-full border rounded-lg px-3 py-2 text-sm"
-            >
-              {EVENT_EXPENSE_CATEGORIES.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-            <input
-              type="number"
-              placeholder="Amount (Rs.)"
-              value={expenseForm.amount}
-              onChange={(e) => setExpenseForm({ ...expenseForm, amount: e.target.value })}
-              className="w-full border rounded-lg px-3 py-2 text-sm"
-            />
-            <input
-              placeholder="Description (optional)"
-              value={expenseForm.description}
-              onChange={(e) => setExpenseForm({ ...expenseForm, description: e.target.value })}
-              className="w-full border rounded-lg px-3 py-2 text-sm"
-            />
+            <ModalField label="Category">
+              <select
+                value={expenseForm.category}
+                onChange={(e) => setExpenseForm({ ...expenseForm, category: e.target.value })}
+                className={modalSelectClass}
+              >
+                {EVENT_EXPENSE_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </ModalField>
+            <ModalField label="Amount (Rs.)">
+              <input
+                type="number"
+                placeholder="Enter amount"
+                value={expenseForm.amount}
+                onChange={(e) => setExpenseForm({ ...expenseForm, amount: e.target.value })}
+                className={modalInputClass}
+              />
+            </ModalField>
+            <ModalField label="Description" hint="Optional">
+              <input
+                placeholder="What was this cost for?"
+                value={expenseForm.description}
+                onChange={(e) => setExpenseForm({ ...expenseForm, description: e.target.value })}
+                className={modalInputClass}
+              />
+            </ModalField>
             <button onClick={handleAddOrUpdateExpense} className="btn-primary w-full !py-2.5 !rounded-lg">
               {editingExpenseId ? 'Save Changes' : 'Add Expense'}
             </button>

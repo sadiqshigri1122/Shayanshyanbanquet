@@ -13,6 +13,7 @@ import {
 } from '../../utils/manualPricing';
 import ManualPricingTable, { getPricingFromRows } from '../../components/ManualPricingTable';
 import Modal from '../../components/Modal';
+import ModalField, { modalFormClass, modalInputClass } from '../../components/ModalField';
 import PrintBookingSlip from '../../components/PrintBookingSlip';
 
 export default function NewBooking() {
@@ -253,12 +254,22 @@ export default function NewBooking() {
 
       {showNewCustomer && (
         <Modal title="Create New Customer" onClose={() => setShowNewCustomer(false)}>
-          <div className="space-y-3">
-            <input placeholder="Full Name *" value={newCustomer.name} onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm" />
-            <input placeholder="Phone *" value={newCustomer.phone} onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm" />
-            <input placeholder="CNIC" value={newCustomer.cnic} onChange={(e) => setNewCustomer({ ...newCustomer, cnic: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm" />
-            <input placeholder="Father/Husband Name" value={newCustomer.fatherHusbandName} onChange={(e) => setNewCustomer({ ...newCustomer, fatherHusbandName: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm" />
-            <input placeholder="Address *" value={newCustomer.address} onChange={(e) => setNewCustomer({ ...newCustomer, address: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm" />
+          <div className={modalFormClass}>
+            <ModalField label="Full Name">
+              <input value={newCustomer.name} onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })} className={modalInputClass} />
+            </ModalField>
+            <ModalField label="Phone">
+              <input value={newCustomer.phone} onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })} className={modalInputClass} />
+            </ModalField>
+            <ModalField label="CNIC" hint="Optional">
+              <input value={newCustomer.cnic} onChange={(e) => setNewCustomer({ ...newCustomer, cnic: e.target.value })} className={modalInputClass} />
+            </ModalField>
+            <ModalField label="Father / Husband Name" hint="Optional">
+              <input value={newCustomer.fatherHusbandName} onChange={(e) => setNewCustomer({ ...newCustomer, fatherHusbandName: e.target.value })} className={modalInputClass} />
+            </ModalField>
+            <ModalField label="Address">
+              <input value={newCustomer.address} onChange={(e) => setNewCustomer({ ...newCustomer, address: e.target.value })} className={modalInputClass} />
+            </ModalField>
             <button onClick={handleCreateCustomer} disabled={!newCustomer.name || !newCustomer.phone || !newCustomer.address} className="btn-primary w-full !py-2.5 !rounded-lg disabled:opacity-50">Create Customer</button>
           </div>
         </Modal>

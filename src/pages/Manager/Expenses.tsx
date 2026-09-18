@@ -4,6 +4,7 @@ import { formatCurrency } from '../../utils/bookingUtils';
 import { getErrorMessage } from '../../utils/errorMessage';
 import StatusBadge from '../../components/StatusBadge';
 import Modal from '../../components/Modal';
+import ModalField, { modalFormClass, modalInputClass, modalSelectClass } from '../../components/ModalField';
 import type { PaymentMethod } from '../../types';
 
 const EXPENSE_CATEGORIES = [
@@ -123,13 +124,12 @@ export default function Expenses() {
 
       {showForm && (
         <Modal title="Add Expense" onClose={closeForm}>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1.5">Category</label>
+          <div className={modalFormClass}>
+            <ModalField label="Category">
               <select
                 value={form.category}
                 onChange={(e) => setForm({ ...form, category: e.target.value as typeof form.category })}
-                className="w-full border rounded-lg px-3 py-2.5 text-sm"
+                className={modalSelectClass}
               >
                 {EXPENSE_CATEGORIES.map((c) => (
                   <option key={c} value={c}>
@@ -137,26 +137,24 @@ export default function Expenses() {
                   </option>
                 ))}
               </select>
-            </div>
+            </ModalField>
 
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1.5">Amount (Rs.)</label>
+            <ModalField label="Amount (Rs.)">
               <input
                 type="number"
                 min="1"
                 placeholder="Enter amount"
                 value={form.amount}
                 onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                className="w-full border rounded-lg px-3 py-2.5 text-sm"
+                className={modalInputClass}
               />
-            </div>
+            </ModalField>
 
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1.5">Payment Method</label>
+            <ModalField label="Payment Method">
               <select
                 value={form.method}
                 onChange={(e) => setForm({ ...form, method: e.target.value as PaymentMethod })}
-                className="w-full border rounded-lg px-3 py-2.5 text-sm"
+                className={modalSelectClass}
               >
                 <option value="cash">Cash</option>
                 <option value="bank_transfer">Bank Transfer</option>
@@ -165,17 +163,16 @@ export default function Expenses() {
                 <option value="easypaisa">EasyPaisa</option>
                 <option value="other">Other</option>
               </select>
-            </div>
+            </ModalField>
 
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1.5">Description</label>
+            <ModalField label="Description">
               <input
                 placeholder="What was this expense for?"
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
-                className="w-full border rounded-lg px-3 py-2.5 text-sm"
+                className={modalInputClass}
               />
-            </div>
+            </ModalField>
 
             {error && (
               <p className="text-sm text-danger bg-danger-light border border-danger/20 rounded-lg px-3 py-2">
