@@ -50,6 +50,11 @@ export interface ApiAppState {
   settings: import('../types').SystemSettings;
   users: import('../types').User[];
   venues: import('../types').Venue[];
+  inventoryItems: import('../types').InventoryItem[];
+  inventoryTransactions: import('../types').InventoryTransaction[];
+  kitchenPurchases: import('../types').KitchenPurchase[];
+  kitchenStock: import('../types').KitchenStock[];
+  kitchenStockUsage: import('../types').KitchenStockUsage[];
 }
 
 export interface LoginResponse {
@@ -161,6 +166,46 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+  createInventoryItem: (body: unknown) =>
+    request<import('../types').InventoryItem>('/api/inventory/items', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  updateInventoryItem: (id: string, body: unknown) =>
+    request<import('../types').InventoryItem>(`/api/inventory/items/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+  stockOut: (body: unknown) =>
+    request<import('../types').InventoryItem>('/api/inventory/stock-out', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  stockIn: (body: unknown) =>
+    request<import('../types').InventoryItem>('/api/inventory/stock-in', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  searchInventoryBySerial: (serial: string) =>
+    request<{
+      item: import('../types').InventoryItem;
+      transactions: import('../types').InventoryTransaction[];
+    }>(`/api/inventory/search/${encodeURIComponent(serial)}`),
+  createKitchenPurchase: (body: unknown) =>
+    request<import('../types').KitchenPurchase>('/api/kitchen/purchases', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  recordKitchenStockUsage: (body: unknown) =>
+    request<import('../types').KitchenStock>('/api/kitchen/stock-usage', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  updateKitchenStockThreshold: (item: string, minThreshold: number) =>
+    request<import('../types').KitchenStock>(
+      `/api/kitchen/stock/${encodeURIComponent(item)}/threshold`,
+      { method: 'PATCH', body: JSON.stringify({ minThreshold }) },
+    ),
 };
 
 export async function refreshAppStateFromApi(): Promise<ApiAppState> {

@@ -4,6 +4,11 @@ import type {
   Customer,
   Expense,
   EventExpense,
+  InventoryItem,
+  InventoryTransaction,
+  KitchenPurchase,
+  KitchenStock,
+  KitchenStockUsage,
   Payment,
   Receipt,
   SystemSettings,
@@ -241,4 +246,37 @@ export function recalculateBookingBalances(booking: Booking): Booking {
     remainingBalance,
     paymentStatus: derivePaymentStatus(booking.grandTotal, booking.advancePaid),
   };
+}
+
+export function upsertInventoryItem(items: InventoryItem[], item: InventoryItem): InventoryItem[] {
+  return items.some((i) => i.id === item.id)
+    ? items.map((i) => (i.id === item.id ? item : i))
+    : [item, ...items];
+}
+
+export function appendInventoryTransaction(
+  txs: InventoryTransaction[],
+  tx: InventoryTransaction,
+): InventoryTransaction[] {
+  return [tx, ...txs];
+}
+
+export function appendKitchenPurchase(
+  purchases: KitchenPurchase[],
+  purchase: KitchenPurchase,
+): KitchenPurchase[] {
+  return [purchase, ...purchases];
+}
+
+export function upsertKitchenStock(stock: KitchenStock[], row: KitchenStock): KitchenStock[] {
+  return stock.some((s) => s.id === row.id)
+    ? stock.map((s) => (s.id === row.id ? row : s))
+    : [...stock, row].sort((a, b) => a.item.localeCompare(b.item));
+}
+
+export function appendKitchenStockUsage(
+  usage: KitchenStockUsage[],
+  row: KitchenStockUsage,
+): KitchenStockUsage[] {
+  return [row, ...usage];
 }

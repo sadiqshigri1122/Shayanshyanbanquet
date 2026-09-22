@@ -2,13 +2,18 @@ import { Link } from 'react-router-dom';
 import {
   TrendingUp, DollarSign, CalendarDays, CreditCard,
   CheckCircle2, Clock, XCircle, ArrowRight, AlertCircle,
-  BarChart3, Wallet, Receipt,
+  BarChart3, Wallet, Receipt, Package, ChefHat,
 } from 'lucide-react';
 import { useApp, computeKPIs } from '../../context/AppContext';
 import { formatCurrency, getStatusColor, BLOCKING_STATUSES } from '../../utils/bookingUtils';
+import { formatInventoryDateTime, isLowStock } from '../../utils/inventoryUtils';
+import InventoryStatusBadge from '../../components/InventoryStatusBadge';
 
 export default function ManagerDashboard() {
-  const { bookings, payments, expenses, approvals, approveRequest, currentUser } = useApp();
+  const {
+    bookings, payments, expenses, approvals, approveRequest, currentUser,
+    inventoryItems, inventoryTransactions, kitchenPurchases, kitchenStock,
+  } = useApp();
   const kpis = computeKPIs(bookings, payments, expenses);
   const today = new Date().toISOString().split('T')[0];
 
@@ -17,6 +22,11 @@ export default function ManagerDashboard() {
     .sort((a, b) => a.functionDate.localeCompare(b.functionDate));
   const pendingApprovals = approvals.filter((a) => a.status === 'pending');
   const recentPayments = [...payments].sort((a, b) => b.paymentDate.localeCompare(a.paymentDate)).slice(0, 5);
+  const monthPrefix = new Date().toISOString().slice(0, 7);
+  const kitchenPurchasesThisMonth = kitchenPurchases.filter((p) => p.purchaseDate.startsWith(monthPrefix));
+  const lowStockCount = kitchenStock.filter((s) => isLowStock(s.currentQuantity, s.minThreshold)).length;
+  const recentInventoryTx = [...inventoryTransactions].sort((a, b) => b.transactionDate.localeCompare(a.transactionDate)).slice(0, 5);
+  const recentKitchenPurchases = [...kitchenPurchases].sort((a, b) => b.purchaseDate.localeCompare(a.purchaseDate)).slice(0, 5);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -101,6 +111,73 @@ export default function ManagerDashboard() {
           <div className="flex items-center gap-2 bg-white/10 rounded-lg px-4 py-2 self-start sm:self-auto">
             <TrendingUp size={20} className="text-success" />
             <span className="text-success font-bold text-sm">Profitable</span>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Inventory & Kitchen</h2>
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
+          {[
+            { label: 'Inventory Items', value: inventoryItems.length, link: '/manager/inventory-reports' },
+            { label: 'Items IN', value: inventoryItems.filter((i) => i.status === 'IN').length },
+            { label: 'Items OUT', value: inventoryItems.filter((i) => i.status === 'OUT').length },
+            { label: 'Kitchen Purchases (Month)', value: kitchenPurchasesThisMonth.length },
+            { label: 'Low Stock Items', value: lowStockCount, warn: lowStockCount > 0 },
+          ].map((card) => (
+            <div key={card.label} className={`card !py-4 ${card.warn ? 'border-l-4 border-l-warning' : ''}`}>
+              {card.link ? (
+                <Link to={card.link}>
+                  <p className="text-xs text-muted">{card.label}</p>
+                  <p className="text-2xl font-bold text-primary">{card.value}</p>
+                </Link>
+              ) : (
+                <>
+                  <p className="text-xs text-muted">{card.label}</p>
+                  <p className="text-2xl font-bold text-primary">{card.value}</p>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="grid lg:grid-cols-2 gap-6 mb-6">
+          <div className="card">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-sm flex items-center gap-2"><Package size={16} /> Recent Inventory Activity</h3>
+              <Link to="/manager/inventory-reports" className="text-xs text-secondary font-semibold">Reports</Link>
+            </div>
+            {recentInventoryTx.length === 0 ? (
+              <p className="text-sm text-muted">No activity yet.</p>
+            ) : (
+              <ul className="space-y-2 text-sm">
+                {recentInventoryTx.map((tx) => {
+                  const item = inventoryItems.find((i) => i.id === tx.inventoryItemId);
+                  return (
+                    <li key={tx.id} className="border-b border-surface-alt pb-2 last:border-0">
+                      {formatInventoryDateTime(tx.transactionDate).split(',')[0]} | {tx.serialNumber} | {item?.itemName} | <InventoryStatusBadge status={tx.action} /> | {tx.person} | Entered by {tx.createdBy}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+          <div className="card">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-sm flex items-center gap-2"><ChefHat size={16} /> Recent Kitchen Purchases</h3>
+              <Link to="/manager/kitchen-reports" className="text-xs text-secondary font-semibold">Reports</Link>
+            </div>
+            {recentKitchenPurchases.length === 0 ? (
+              <p className="text-sm text-muted">No purchases yet.</p>
+            ) : (
+              <ul className="space-y-2 text-sm">
+                {recentKitchenPurchases.map((p) => (
+                  <li key={p.id} className="border-b border-surface-alt pb-2 last:border-0">
+                    {p.purchaseDate} | {p.item} | {p.quantity} {p.unit} | {formatCurrency(p.totalCost)} | {p.purchasedBy}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
       </div>

@@ -6,6 +6,11 @@ import type {
   Customer,
   EventExpenseRecord,
   ExpenseRecord,
+  InventoryItem,
+  InventoryTransaction,
+  KitchenPurchase,
+  KitchenStock,
+  KitchenStockUsage,
   NotificationRecord,
   PaymentRecord,
   ReceiptRecord,
@@ -81,6 +86,11 @@ export interface AppStateDto {
   settings: ReturnType<typeof mapSettings>;
   users: ReturnType<typeof mapUser>[];
   venues: ReturnType<typeof mapVenue>[];
+  inventoryItems: ReturnType<typeof mapInventoryItem>[];
+  inventoryTransactions: ReturnType<typeof mapInventoryTransaction>[];
+  kitchenPurchases: ReturnType<typeof mapKitchenPurchase>[];
+  kitchenStock: ReturnType<typeof mapKitchenStock>[];
+  kitchenStockUsage: ReturnType<typeof mapKitchenStockUsage>[];
 }
 
 export function mapCustomer(c: Customer): CustomerDto {
@@ -284,5 +294,92 @@ export function mapSettings(s: SystemSettingsRecord) {
     companyEmail: s.companyEmail,
     companyAddress: s.companyAddress,
     termsAndConditions: s.termsAndConditions,
+  };
+}
+
+export function mapInventoryItem(i: InventoryItem) {
+  return {
+    id: i.id,
+    itemName: i.itemName,
+    category: i.category,
+    serialNumber: i.serialNumber,
+    location: i.location,
+    status: i.status as 'IN' | 'OUT',
+    currentHolder: i.currentHolder ?? undefined,
+    purchaseDate: i.purchaseDate ?? undefined,
+    purchaseReference: i.purchaseReference ?? undefined,
+    supplier: i.supplier ?? undefined,
+    notes: i.notes ?? undefined,
+    createdBy: i.createdBy,
+    createdAt: i.createdAt,
+    updatedAt: i.updatedAt,
+  };
+}
+
+export function mapInventoryTransaction(t: InventoryTransaction) {
+  return {
+    id: t.id,
+    inventoryItemId: t.inventoryItemId,
+    serialNumber: t.serialNumber,
+    action: t.action as 'IN' | 'OUT',
+    transactionDate: t.transactionDate,
+    fromLocation: t.fromLocation,
+    toLocation: t.toLocation,
+    person: t.person,
+    reason: t.reason,
+    bookingId: t.bookingId ?? undefined,
+    condition: t.condition ?? undefined,
+    notes: t.notes ?? undefined,
+    createdBy: t.createdBy,
+    createdAt: t.createdAt,
+  };
+}
+
+export function mapKitchenPurchase(p: KitchenPurchase) {
+  return {
+    id: p.id,
+    purchaseDate: p.purchaseDate,
+    item: p.item,
+    category: p.category,
+    quantity: p.quantity,
+    unit: p.unit,
+    unitCost: p.unitCost,
+    totalCost: p.totalCost,
+    supplier: p.supplier,
+    purchasedBy: p.purchasedBy,
+    receivedBy: p.receivedBy,
+    invoiceNumber: p.invoiceNumber ?? undefined,
+    notes: p.notes ?? undefined,
+    createdBy: p.createdBy,
+    createdAt: p.createdAt,
+  };
+}
+
+export function mapKitchenStock(s: KitchenStock) {
+  return {
+    id: s.id,
+    item: s.item,
+    category: s.category,
+    unit: s.unit,
+    currentQuantity: s.currentQuantity,
+    minThreshold: s.minThreshold,
+    lastPurchaseDate: s.lastPurchaseDate ?? undefined,
+    lastPurchaseCost: s.lastPurchaseCost ?? undefined,
+    updatedAt: s.updatedAt,
+  };
+}
+
+export function mapKitchenStockUsage(u: KitchenStockUsage) {
+  return {
+    id: u.id,
+    item: u.item,
+    quantity: u.quantity,
+    unit: u.unit,
+    reason: u.reason ?? undefined,
+    bookingId: u.bookingId ?? undefined,
+    usedBy: u.usedBy,
+    usedAt: u.usedAt,
+    createdBy: u.createdBy,
+    createdAt: u.createdAt,
   };
 }

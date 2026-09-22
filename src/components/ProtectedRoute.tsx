@@ -14,6 +14,7 @@ interface Props {
 function redirectTarget(role: import('../types').UserRole, pathname: string): string {
   const home = dashboardPathForRole(role);
   const fromDashboard = dashboardRoleFromPath(pathname);
+  if (role === 'inventory_staff') return home;
   if (!fromDashboard || fromDashboard === 'office') {
     return resolveStaffLink(pathname, role === 'super_admin' ? 'admin' : 'manager');
   }

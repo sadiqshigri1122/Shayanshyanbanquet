@@ -6,6 +6,11 @@ import {
   mapCustomer,
   mapEventExpense,
   mapExpense,
+  mapInventoryItem,
+  mapInventoryTransaction,
+  mapKitchenPurchase,
+  mapKitchenStock,
+  mapKitchenStockUsage,
   mapNotification,
   mapPayment,
   mapReceipt,
@@ -36,6 +41,11 @@ export async function getFullAppState(): Promise<AppStateDto> {
     settings,
     users,
     venues,
+    inventoryItems,
+    inventoryTransactions,
+    kitchenPurchases,
+    kitchenStock,
+    kitchenStockUsage,
   ] = await Promise.all([
     prisma.booking.findMany({
       include: { customer: true, lineItems: true },
@@ -58,6 +68,11 @@ export async function getFullAppState(): Promise<AppStateDto> {
     prisma.systemSettingsRecord.findUnique({ where: { id: 1 } }),
     prisma.user.findMany({ orderBy: { createdAt: 'asc' } }),
     prisma.venue.findMany({ orderBy: { id: 'asc' } }),
+    prisma.inventoryItem.findMany({ orderBy: { createdAt: 'desc' } }),
+    prisma.inventoryTransaction.findMany({ orderBy: { transactionDate: 'desc' } }),
+    prisma.kitchenPurchase.findMany({ orderBy: { purchaseDate: 'desc' } }),
+    prisma.kitchenStock.findMany({ orderBy: { item: 'asc' } }),
+    prisma.kitchenStockUsage.findMany({ orderBy: { usedAt: 'desc' } }),
   ]);
 
   if (!settings) {
@@ -77,6 +92,11 @@ export async function getFullAppState(): Promise<AppStateDto> {
     settings: mapSettings(settings),
     users: users.map(mapUser),
     venues: venues.map(mapVenue),
+    inventoryItems: inventoryItems.map(mapInventoryItem),
+    inventoryTransactions: inventoryTransactions.map(mapInventoryTransaction),
+    kitchenPurchases: kitchenPurchases.map(mapKitchenPurchase),
+    kitchenStock: kitchenStock.map(mapKitchenStock),
+    kitchenStockUsage: kitchenStockUsage.map(mapKitchenStockUsage),
   };
 }
 

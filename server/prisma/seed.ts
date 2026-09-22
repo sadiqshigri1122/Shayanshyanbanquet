@@ -9,6 +9,11 @@ const getDayName = (d: string) => DAYS[new Date(`${d}T12:00:00`).getDay()];
 const demoToday = new Date().toISOString().split('T')[0];
 
 async function main() {
+  await prisma.inventoryTransaction.deleteMany();
+  await prisma.inventoryItem.deleteMany();
+  await prisma.kitchenStockUsage.deleteMany();
+  await prisma.kitchenPurchase.deleteMany();
+  await prisma.kitchenStock.deleteMany();
   await prisma.auditLogRecord.deleteMany();
   await prisma.notificationRecord.deleteMany();
   await prisma.approvalRecord.deleteMany();
@@ -30,6 +35,7 @@ async function main() {
     { id: 'u2', name: 'Ali Hassan', email: 'ali@shayanbanquet.pk', role: 'manager', phone: '0321-9876543', password: 'Manager@2026', isActive: true, createdAt: '2026-01-10' },
     { id: 'u3', name: 'Admin', email: 'admin@shayanbanquet.pk', role: 'super_admin', password: 'Admin@2026', isActive: true, createdAt: '2025-12-01' },
     { id: 'u4', name: 'Sara Bibi', email: 'sara@shayanbanquet.pk', role: 'booking_office', phone: '0333-1112233', password: 'Office2@2026', isActive: true, createdAt: '2026-03-01' },
+    { id: 'u5', name: 'Usman Ali', email: 'inventory@shayanbanquet.pk', role: 'inventory_staff', phone: '0345-5556677', password: 'Inventory@2026', isActive: true, createdAt: '2026-04-01' },
   ] as const;
 
   for (const user of userSeeds) {
@@ -189,6 +195,133 @@ async function main() {
       companyAddress: 'PAF Plot # 2, Shaheed-e-Millat Flyover, Baloch Colony, Karachi-75350',
       termsAndConditions: 'Advance payment is required to confirm the booking.',
     },
+  });
+
+  await prisma.inventoryItem.create({
+    data: {
+      id: 'inv1',
+      itemName: 'Gas Stove',
+      category: 'Kitchen Equipment',
+      serialNumber: 'SN-KIT-1002',
+      location: 'Kitchen',
+      status: 'OUT',
+      currentHolder: 'Chef Ahmed',
+      purchaseDate: '2026-01-10',
+      supplier: 'Kitchen Pro',
+      createdBy: 'Usman Ali',
+      createdAt: '2026-01-10T10:00:00.000Z',
+      updatedAt: '2026-09-19T10:30:00.000Z',
+    },
+  });
+
+  await prisma.inventoryItem.create({
+    data: {
+      id: 'inv2',
+      itemName: 'Blender',
+      category: 'Kitchen Equipment',
+      serialNumber: 'SN-KIT-1005',
+      location: 'Kitchen Store',
+      status: 'IN',
+      purchaseDate: '2026-02-01',
+      supplier: 'Kitchen Pro',
+      createdBy: 'Usman Ali',
+      createdAt: '2026-02-01T09:00:00.000Z',
+      updatedAt: '2026-09-19T14:00:00.000Z',
+    },
+  });
+
+  await prisma.inventoryTransaction.createMany({
+    data: [
+      {
+        id: 'itx1',
+        inventoryItemId: 'inv1',
+        serialNumber: 'SN-KIT-1002',
+        action: 'OUT',
+        transactionDate: '2026-09-19T10:30:00.000Z',
+        fromLocation: 'Kitchen Store',
+        toLocation: 'Kitchen',
+        person: 'Chef Ahmed',
+        reason: 'Event / Kitchen Use',
+        createdBy: 'Usman Ali',
+        createdAt: '2026-09-19T10:30:00.000Z',
+      },
+      {
+        id: 'itx2',
+        inventoryItemId: 'inv1',
+        serialNumber: 'SN-KIT-1002',
+        action: 'IN',
+        transactionDate: '2026-09-17T16:00:00.000Z',
+        fromLocation: 'Kitchen',
+        toLocation: 'Kitchen Store',
+        person: 'Chef Ahmed',
+        reason: 'Returned after event',
+        condition: 'Good',
+        createdBy: 'Usman Ali',
+        createdAt: '2026-09-17T16:00:00.000Z',
+      },
+    ],
+  });
+
+  await prisma.kitchenPurchase.createMany({
+    data: [
+      {
+        id: 'kp1',
+        purchaseDate: '2026-09-19',
+        item: 'Chicken',
+        category: 'Meat & Poultry',
+        quantity: 50,
+        unit: 'KG',
+        unitCost: 850,
+        totalCost: 42500,
+        supplier: 'Fresh Poultry',
+        purchasedBy: 'Ahmed',
+        receivedBy: 'Usman Ali',
+        createdBy: 'Usman Ali',
+        createdAt: '2026-09-19T08:00:00.000Z',
+      },
+      {
+        id: 'kp2',
+        purchaseDate: '2026-09-18',
+        item: 'Rice',
+        category: 'Rice & Grains',
+        quantity: 100,
+        unit: 'KG',
+        unitCost: 320,
+        totalCost: 32000,
+        supplier: 'Grain Mart',
+        purchasedBy: 'Usman',
+        receivedBy: 'Usman Ali',
+        createdBy: 'Usman Ali',
+        createdAt: '2026-09-18T09:00:00.000Z',
+      },
+    ],
+  });
+
+  await prisma.kitchenStock.createMany({
+    data: [
+      {
+        id: 'ks1',
+        item: 'Rice',
+        category: 'Rice & Grains',
+        unit: 'KG',
+        currentQuantity: 120,
+        minThreshold: 50,
+        lastPurchaseDate: '2026-09-18',
+        lastPurchaseCost: 320,
+        updatedAt: '2026-09-19T08:00:00.000Z',
+      },
+      {
+        id: 'ks2',
+        item: 'Chicken',
+        category: 'Meat & Poultry',
+        unit: 'KG',
+        currentQuantity: 35,
+        minThreshold: 40,
+        lastPurchaseDate: '2026-09-19',
+        lastPurchaseCost: 850,
+        updatedAt: '2026-09-19T08:00:00.000Z',
+      },
+    ],
   });
 
   console.log('Database seeded successfully.');

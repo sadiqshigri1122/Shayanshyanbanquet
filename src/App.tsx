@@ -25,6 +25,19 @@ import ManagerDashboard from './pages/Manager/Dashboard';
 import Approvals from './pages/Manager/Approvals';
 import Expenses from './pages/Manager/Expenses';
 import Reports from './pages/Manager/Reports';
+import InventoryReports from './pages/Manager/InventoryReports';
+import KitchenReports from './pages/Manager/KitchenReports';
+
+// Inventory
+import InventoryDashboard from './pages/Inventory/Dashboard';
+import AllItems from './pages/Inventory/AllItems';
+import AddItem from './pages/Inventory/AddItem';
+import StockOut from './pages/Inventory/StockOut';
+import StockIn from './pages/Inventory/StockIn';
+import InventoryHistory from './pages/Inventory/History';
+import KitchenPurchases from './pages/Inventory/KitchenPurchases';
+import KitchenPurchaseHistory from './pages/Inventory/KitchenPurchaseHistory';
+import KitchenStockPage from './pages/Inventory/KitchenStock';
 
 // Admin
 import AdminDashboard from './pages/Admin/Dashboard';
@@ -60,12 +73,28 @@ function App() {
             </Route>
           </Route>
 
+          <Route element={<ProtectedRoute dashboard="inventory" />}>
+            <Route path="/inventory" element={<DashboardLayout role="inventory" />}>
+              <Route index element={<InventoryDashboard />} />
+              <Route path="items" element={<AllItems />} />
+              <Route path="add-item" element={<AddItem />} />
+              <Route path="stock-out" element={<StockOut />} />
+              <Route path="stock-in" element={<StockIn />} />
+              <Route path="history" element={<InventoryHistory />} />
+              <Route path="kitchen/purchases" element={<KitchenPurchases />} />
+              <Route path="kitchen/history" element={<KitchenPurchaseHistory />} />
+              <Route path="kitchen/stock" element={<KitchenStockPage />} />
+            </Route>
+          </Route>
+
           <Route element={<ProtectedRoute dashboard="manager" />}>
             <Route path="/manager" element={<DashboardLayout role="manager" />}>
               <Route index element={<ManagerDashboard />} />
               <Route path="approvals" element={<Approvals />} />
               <Route path="expenses" element={<Expenses />} />
               <Route path="reports" element={<Reports />} />
+              <Route path="inventory-reports" element={<InventoryReports />} />
+              <Route path="kitchen-reports" element={<KitchenReports />} />
               <Route path="bookings" element={<Bookings />} />
               <Route path="bookings/:id" element={<BookingDetail />} />
               <Route path="calendar" element={<Calendar />} />

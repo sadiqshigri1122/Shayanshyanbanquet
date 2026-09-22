@@ -3,7 +3,7 @@
 // ============================================================
 
 // --- User & Auth ---
-export type UserRole = 'booking_office' | 'manager' | 'super_admin';
+export type UserRole = 'booking_office' | 'inventory_staff' | 'manager' | 'super_admin';
 
 export interface User {
   id: string;
@@ -256,6 +256,116 @@ export interface SystemSettings {
   companyAddress: string;
   termsAndConditions: string;
 }
+
+// --- Inventory ---
+export type InventoryStatus = 'IN' | 'OUT';
+export type InventoryAction = 'IN' | 'OUT';
+
+export interface InventoryItem {
+  id: string;
+  itemName: string;
+  category: string;
+  serialNumber: string;
+  location: string;
+  status: InventoryStatus;
+  currentHolder?: string;
+  purchaseDate?: string;
+  purchaseReference?: string;
+  supplier?: string;
+  notes?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InventoryTransaction {
+  id: string;
+  inventoryItemId: string;
+  serialNumber: string;
+  action: InventoryAction;
+  transactionDate: string;
+  fromLocation: string;
+  toLocation: string;
+  person: string;
+  reason: string;
+  bookingId?: string;
+  condition?: string;
+  notes?: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+// --- Kitchen ---
+export interface KitchenPurchase {
+  id: string;
+  purchaseDate: string;
+  item: string;
+  category: string;
+  quantity: number;
+  unit: string;
+  unitCost: number;
+  totalCost: number;
+  supplier: string;
+  purchasedBy: string;
+  receivedBy: string;
+  invoiceNumber?: string;
+  notes?: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface KitchenStock {
+  id: string;
+  item: string;
+  category: string;
+  unit: string;
+  currentQuantity: number;
+  minThreshold: number;
+  lastPurchaseDate?: string;
+  lastPurchaseCost?: number;
+  updatedAt: string;
+}
+
+export interface KitchenStockUsage {
+  id: string;
+  item: string;
+  quantity: number;
+  unit: string;
+  reason?: string;
+  bookingId?: string;
+  usedBy: string;
+  usedAt: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+export const INVENTORY_CATEGORIES = [
+  'Kitchen Equipment',
+  'Electronics',
+  'Furniture',
+  'Generator',
+  'Appliances',
+  'Other',
+] as const;
+
+export const KITCHEN_CATEGORIES = [
+  'Meat & Poultry',
+  'Rice & Grains',
+  'Vegetables',
+  'Spices',
+  'Oil & Ghee',
+  'Beverages',
+  'Dairy',
+  'Other',
+] as const;
+
+export const INVENTORY_LOCATIONS = [
+  'Kitchen Store',
+  'Kitchen',
+  'Store Room',
+  'Office',
+  'Event Floor',
+] as const;
 
 // --- Dashboard KPIs ---
 export interface DashboardKPIs {

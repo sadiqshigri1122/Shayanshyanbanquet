@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { BOOKING_STATUSES, BookingStatusValidationError, LineItemValidationError } from '../lib/bookingLogic.js';
-import { actorName, requireAuth, requireOfficeRole, requireRole } from '../middleware/auth.js';
+import { actorName, requireAnyRole, requireAuth, requireInventoryRole, requireOfficeRole, requireRole } from '../middleware/auth.js';
 import {
   ApiError,
   addBookingServiceItem,
@@ -29,13 +29,35 @@ import {
 } from '../services/stateService.js';
 import { authRouter } from './auth.js';
 import { createUser, deleteUser, setUserPassword, updateUser } from '../services/userService.js';
+import {
+  createInventoryItem,
+  getInventoryItemBySerial,
+  recordStockIn,
+  recordStockOut,
+  updateInventoryItem,
+} from '../services/inventoryService.js';
+import {
+  createKitchenPurchase,
+  recordKitchenStockUsage,
+  updateKitchenStockThreshold,
+} from '../services/kitchenService.js';
 
 export const apiRouter = Router();
 
-const staffRead = [requireAuth, requireRole('booking_office')];
+const staffRead = [
+  requireAuth,
+  requireAnyRole('booking_office', 'inventory_staff', 'manager', 'super_admin'),
+];
 const officeWrite = [requireAuth, requireOfficeRole()];
+const inventoryWrite = [requireAuth, requireInventoryRole()];
+const inventoryRead = [
+  requireAuth,
+  requireAnyRole('inventory_staff', 'manager', 'super_admin'),
+];
 const managerUp = [requireAuth, requireRole('manager')];
 const adminOnly = [requireAuth, requireRole('super_admin')];
+
+const USER_ROLES = ['booking_office', 'inventory_staff', 'manager', 'super_admin'] as const;
 
 function paramId(req: import('express').Request, key = 'id'): string {
   const val = req.params[key];
@@ -286,6 +308,143 @@ apiRouter.post(
 );
 
 apiRouter.post(
+  '/inventory/items',
+  ...inventoryWrite,
+  handle(async (req) => {
+    const body = z
+      .object({
+        itemName: z.string().min(1).max(200),
+        category: z.string().min(1).max(100),
+        serialNumber: z.string().min(1).max(100),
+        location: z.string().min(1).max(200),
+        purchaseDate: z.string().optional(),
+        purchaseReference: z.string().max(100).optional(),
+        supplier: z.string().max(200).optional(),
+        notes: z.string().max(1000).optional(),
+      })
+      .parse(req.body);
+    return createInventoryItem(body, actorName(req));
+  }),
+);
+
+apiRouter.patch(
+  '/inventory/items/:id',
+  ...inventoryWrite,
+  handle(async (req) => {
+    const body = z
+      .object({
+        itemName: z.string().min(1).max(200).optional(),
+        category: z.string().min(1).max(100).optional(),
+        purchaseDate: z.string().optional(),
+        purchaseReference: z.string().max(100).optional(),
+        supplier: z.string().max(200).optional(),
+        notes: z.string().max(1000).optional(),
+      })
+      .parse(req.body);
+    return updateInventoryItem(paramId(req), body, actorName(req));
+  }),
+);
+
+apiRouter.post(
+  '/inventory/stock-out',
+  ...inventoryWrite,
+  handle(async (req) => {
+    const body = z
+      .object({
+        serialNumber: z.string().min(1).max(100),
+        fromLocation: z.string().min(1).max(200),
+        toLocation: z.string().min(1).max(200),
+        givenTo: z.string().min(1).max(200),
+        reason: z.string().min(1).max(500),
+        bookingId: z.string().optional(),
+        notes: z.string().max(1000).optional(),
+      })
+      .parse(req.body);
+    return recordStockOut(body, actorName(req));
+  }),
+);
+
+apiRouter.post(
+  '/inventory/stock-in',
+  ...inventoryWrite,
+  handle(async (req) => {
+    const body = z
+      .object({
+        serialNumber: z.string().min(1).max(100),
+        fromLocation: z.string().min(1).max(200),
+        toLocation: z.string().min(1).max(200),
+        returnedBy: z.string().min(1).max(200),
+        condition: z.string().min(1).max(100),
+        reason: z.string().min(1).max(500),
+        bookingId: z.string().optional(),
+        notes: z.string().max(1000).optional(),
+      })
+      .parse(req.body);
+    return recordStockIn(body, actorName(req));
+  }),
+);
+
+apiRouter.get(
+  '/inventory/search/:serial',
+  ...inventoryRead,
+  handle(async (req) => {
+    const serial = paramId(req, 'serial');
+    return getInventoryItemBySerial(serial);
+  }),
+);
+
+apiRouter.post(
+  '/kitchen/purchases',
+  ...inventoryWrite,
+  handle(async (req) => {
+    const body = z
+      .object({
+        purchaseDate: z.string().min(1),
+        item: z.string().min(1).max(200),
+        category: z.string().min(1).max(100),
+        quantity: z.number().positive(),
+        unit: z.string().min(1).max(50),
+        unitCost: z.number().min(0),
+        supplier: z.string().min(1).max(200),
+        purchasedBy: z.string().min(1).max(200),
+        receivedBy: z.string().min(1).max(200),
+        invoiceNumber: z.string().max(100).optional(),
+        notes: z.string().max(1000).optional(),
+      })
+      .parse(req.body);
+    return createKitchenPurchase(body, actorName(req));
+  }),
+);
+
+apiRouter.post(
+  '/kitchen/stock-usage',
+  ...inventoryWrite,
+  handle(async (req) => {
+    const body = z
+      .object({
+        item: z.string().min(1).max(200),
+        quantity: z.number().positive(),
+        reason: z.string().max(500).optional(),
+        bookingId: z.string().optional(),
+        usedBy: z.string().min(1).max(200),
+        usedAt: z.string().optional(),
+      })
+      .parse(req.body);
+    return recordKitchenStockUsage(body, actorName(req));
+  }),
+);
+
+apiRouter.patch(
+  '/kitchen/stock/:item/threshold',
+  ...managerUp,
+  handle(async (req) => {
+    const item = decodeURIComponent(paramId(req, 'item'));
+    const body = z.object({ minThreshold: z.number().min(0) }).parse(req.body);
+    return updateKitchenStockThreshold(item, body.minThreshold, actorName(req));
+  }),
+);
+
+apiRouter.post(
   '/users',
   ...adminOnly,
   handle(async (req) => {
@@ -293,7 +452,7 @@ apiRouter.post(
       .object({
         name: z.string().min(1).max(100),
         email: z.string().email(),
-        role: z.enum(['booking_office', 'manager', 'super_admin']),
+        role: z.enum(USER_ROLES),
         phone: z.string().max(30).optional(),
         password: z.string().min(8),
         isActive: z.boolean().optional(),
@@ -311,7 +470,7 @@ apiRouter.patch(
       .object({
         name: z.string().min(1).max(100).optional(),
         email: z.string().email().optional(),
-        role: z.enum(['booking_office', 'manager', 'super_admin']).optional(),
+        role: z.enum(USER_ROLES).optional(),
         phone: z.string().max(30).nullable().optional(),
         isActive: z.boolean().optional(),
       })

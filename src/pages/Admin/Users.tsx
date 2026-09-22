@@ -6,6 +6,7 @@ import type { User, UserRole } from '../../types';
 
 const roleLabels: Record<UserRole, string> = {
   booking_office: 'Booking Office',
+  inventory_staff: 'Inventory Staff',
   manager: 'Manager',
   super_admin: 'Super Admin',
 };
@@ -368,6 +369,7 @@ function UserFormFields({
           className="w-full"
         >
           <option value="booking_office">Booking Office</option>
+          <option value="inventory_staff">Inventory Staff</option>
           <option value="manager">Manager</option>
           <option value="super_admin">Super Admin</option>
         </select>

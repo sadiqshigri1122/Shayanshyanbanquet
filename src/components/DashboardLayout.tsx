@@ -5,6 +5,7 @@ import {
   ChevronLeft, ChevronRight, Bell, Search, Settings, Menu,
   ClipboardList, PlusCircle, CalendarCheck,
   CheckCircle2, BarChart3, Shield, DollarSign, LogOut,
+  Package, ArrowDownCircle, ArrowUpCircle, History, ShoppingCart, Warehouse, ChefHat,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { DashboardProvider } from '../context/DashboardContext';
@@ -22,11 +23,24 @@ const navByRole: Record<DashboardRole, { label: string; icon: typeof LayoutDashb
     { label: 'Payments & Receipts', icon: CreditCard, path: '/office/payments' },
     { label: 'Customers', icon: Users, path: '/office/customers' },
   ],
+  inventory: [
+    { label: 'Dashboard', icon: LayoutDashboard, path: '/inventory' },
+    { label: 'All Items', icon: Package, path: '/inventory/items' },
+    { label: 'Add Item', icon: PlusCircle, path: '/inventory/add-item' },
+    { label: 'Stock OUT', icon: ArrowUpCircle, path: '/inventory/stock-out' },
+    { label: 'Stock IN', icon: ArrowDownCircle, path: '/inventory/stock-in' },
+    { label: 'Inventory History', icon: History, path: '/inventory/history' },
+    { label: 'Kitchen Purchases', icon: ShoppingCart, path: '/inventory/kitchen/purchases' },
+    { label: 'Purchase History', icon: ClipboardList, path: '/inventory/kitchen/history' },
+    { label: 'Kitchen Stock', icon: Warehouse, path: '/inventory/kitchen/stock' },
+  ],
   manager: [
     { label: 'Dashboard', icon: LayoutDashboard, path: '/manager' },
     { label: 'Approvals', icon: CheckCircle2, path: '/manager/approvals' },
     { label: 'Expenses', icon: DollarSign, path: '/manager/expenses' },
     { label: 'Reports', icon: BarChart3, path: '/manager/reports' },
+    { label: 'Inventory Reports', icon: Package, path: '/manager/inventory-reports' },
+    { label: 'Kitchen Reports', icon: ChefHat, path: '/manager/kitchen-reports' },
     { label: 'All Bookings', icon: ClipboardList, path: '/manager/bookings' },
     { label: 'Calendar', icon: CalendarDays, path: '/manager/calendar' },
     { label: 'Customers', icon: Users, path: '/manager/customers' },
@@ -43,6 +57,7 @@ const navByRole: Record<DashboardRole, { label: string; icon: typeof LayoutDashb
 
 const roleTitles: Record<DashboardRole, string> = {
   office: 'Booking Office',
+  inventory: 'Inventory Staff',
   manager: 'Manager',
   admin: 'Super Admin',
 };
@@ -114,7 +129,9 @@ export default function DashboardLayout({ role }: Props) {
               location.pathname === link.path ||
               (link.path.endsWith('/event-day') && location.pathname.startsWith(`${link.path}`)) ||
               (link.path.endsWith('/payments') && location.pathname.startsWith(link.path)) ||
-              (link.path.endsWith('/bookings') && location.pathname.startsWith(`${link.path}/`));
+              (link.path.endsWith('/bookings') && location.pathname.startsWith(`${link.path}/`)) ||
+              (link.path.startsWith('/inventory/kitchen') && location.pathname.startsWith(link.path)) ||
+              (link.path.startsWith('/inventory/') && link.path !== '/inventory' && location.pathname.startsWith(link.path));
             return (
               <Link
                 key={link.path}

@@ -11,6 +11,7 @@ const LOCAL_PASSWORDS: Record<string, string> = {
   'ali@shayanbanquet.pk': 'Manager@2026',
   'admin@shayanbanquet.pk': 'Admin@2026',
   'sara@shayanbanquet.pk': 'Office2@2026',
+  'inventory@shayanbanquet.pk': 'Inventory@2026',
 };
 
 const AUTH_STORAGE_KEY = 'shayan-auth';

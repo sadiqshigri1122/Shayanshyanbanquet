@@ -220,3 +220,103 @@ model AuthSession {
   @@index([userId])
   @@index([expiresAt])
 }
+
+model InventoryItem {
+  id                String                 @id
+  itemName          String
+  category          String
+  serialNumber      String                 @unique
+  location          String
+  status            String
+  currentHolder     String?
+  purchaseDate      String?
+  purchaseReference String?
+  supplier          String?
+  notes             String?
+  createdBy         String
+  createdAt         String
+  updatedAt         String
+  transactions      InventoryTransaction[]
+
+  @@index([serialNumber])
+  @@index([status])
+  @@index([category])
+  @@index([location])
+}
+
+model InventoryTransaction {
+  id              String        @id
+  inventoryItemId String
+  inventoryItem   InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+  serialNumber    String
+  action          String
+  transactionDate String
+  fromLocation    String
+  toLocation      String
+  person          String
+  reason          String
+  bookingId       String?
+  condition       String?
+  notes           String?
+  createdBy       String
+  createdAt       String
+
+  @@index([serialNumber])
+  @@index([inventoryItemId])
+  @@index([createdAt])
+  @@index([createdBy])
+  @@index([action])
+}
+
+model KitchenPurchase {
+  id            String @id
+  purchaseDate  String
+  item          String
+  category      String
+  quantity      Float
+  unit          String
+  unitCost      Int
+  totalCost     Int
+  supplier      String
+  purchasedBy   String
+  receivedBy    String
+  invoiceNumber String?
+  notes         String?
+  createdBy     String
+  createdAt     String
+
+  @@index([purchaseDate])
+  @@index([supplier])
+  @@index([category])
+  @@index([item])
+}
+
+model KitchenStock {
+  id               String @id
+  item             String @unique
+  category         String
+  unit             String
+  currentQuantity  Float
+  minThreshold     Float  @default(0)
+  lastPurchaseDate String?
+  lastPurchaseCost Int?
+  updatedAt        String
+
+  @@index([category])
+}
+
+model KitchenStockUsage {
+  id        String @id
+  item      String
+  quantity  Float
+  unit      String
+  reason    String?
+  bookingId String?
+  usedBy    String
+  usedAt    String
+  createdBy String
+  createdAt String
+
+  @@index([item])
+  @@index([usedAt])
+}

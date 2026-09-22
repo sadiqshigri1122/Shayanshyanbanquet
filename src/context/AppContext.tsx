@@ -24,6 +24,11 @@ import type {
   User,
   UserRole,
   Venue,
+  InventoryItem,
+  InventoryTransaction,
+  KitchenPurchase,
+  KitchenStock,
+  KitchenStockUsage,
 } from '../types';
 import {
   initialBookings,
@@ -37,6 +42,10 @@ import {
   initialSettings,
   initialUsers,
   initialEventExpenses,
+  initialInventoryItems,
+  initialInventoryTransactions,
+  initialKitchenPurchases,
+  initialKitchenStock,
   venues,
   services,
   packages,
@@ -64,6 +73,9 @@ import {
   appendCustomer,
   appendEventExpense,
   appendExpense,
+  appendInventoryTransaction,
+  appendKitchenPurchase,
+  appendKitchenStockUsage,
   applyApprovalDecision,
   applyPaymentResult,
   bookingAdvanceSideEffects,
@@ -73,6 +85,8 @@ import {
   mergeSettings,
   removeUser,
   upsertBooking,
+  upsertInventoryItem,
+  upsertKitchenStock,
   upsertUser,
 } from '../utils/apiStateUpdates';
 
@@ -93,6 +107,11 @@ interface AppState {
   users: User[];
   currentUser: User;
   venues: Venue[];
+  inventoryItems: InventoryItem[];
+  inventoryTransactions: InventoryTransaction[];
+  kitchenPurchases: KitchenPurchase[];
+  kitchenStock: KitchenStock[];
+  kitchenStockUsage: KitchenStockUsage[];
 }
 
 interface AppContextType extends AppState {
@@ -150,6 +169,37 @@ interface AppContextType extends AppState {
   ) => Promise<boolean>;
   deleteEventExpense: (id: string, by: string) => Promise<boolean>;
   getEventExpensesForBooking: (bookingId: string) => EventExpense[];
+  createInventoryItem: (data: Omit<InventoryItem, 'id' | 'status' | 'createdAt' | 'updatedAt' | 'createdBy'>) => Promise<InventoryItem>;
+  updateInventoryItemMeta: (id: string, data: Partial<Pick<InventoryItem, 'itemName' | 'category' | 'purchaseDate' | 'purchaseReference' | 'supplier' | 'notes'>>) => Promise<InventoryItem>;
+  performStockOut: (data: {
+    serialNumber: string;
+    fromLocation: string;
+    toLocation: string;
+    givenTo: string;
+    reason: string;
+    bookingId?: string;
+    notes?: string;
+  }) => Promise<InventoryItem>;
+  performStockIn: (data: {
+    serialNumber: string;
+    fromLocation: string;
+    toLocation: string;
+    returnedBy: string;
+    condition: string;
+    reason: string;
+    bookingId?: string;
+    notes?: string;
+  }) => Promise<InventoryItem>;
+  searchInventoryBySerial: (serial: string) => Promise<{ item: InventoryItem; transactions: InventoryTransaction[] }>;
+  createKitchenPurchase: (data: Omit<KitchenPurchase, 'id' | 'totalCost' | 'createdBy' | 'createdAt'>) => Promise<KitchenPurchase>;
+  recordKitchenUsage: (data: {
+    item: string;
+    quantity: number;
+    reason?: string;
+    bookingId?: string;
+    usedBy: string;
+    usedAt?: string;
+  }) => Promise<KitchenStock>;
   setCurrentUser: (user: User) => void;
   isAuthenticated: boolean;
   login: (
@@ -203,6 +253,11 @@ const defaultState: AppState = {
   users: initialUsers,
   currentUser,
   venues,
+  inventoryItems: initialInventoryItems,
+  inventoryTransactions: initialInventoryTransactions,
+  kitchenPurchases: initialKitchenPurchases,
+  kitchenStock: initialKitchenStock,
+  kitchenStockUsage: [],
 };
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -284,6 +339,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         },
         users: data.users,
         venues: data.venues.length > 0 ? data.venues : prev.venues,
+        inventoryItems: data.inventoryItems ?? [],
+        inventoryTransactions: data.inventoryTransactions ?? [],
+        kitchenPurchases: data.kitchenPurchases ?? [],
+        kitchenStock: data.kitchenStock ?? [],
+        kitchenStockUsage: data.kitchenStockUsage ?? [],
         ...(currentUser ? { currentUser } : {}),
       }),
     [],
@@ -1560,6 +1620,290 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [state.eventExpenses],
   );
 
+  const createInventoryItemFn = useCallback(
+    async (data: Omit<InventoryItem, 'id' | 'status' | 'createdAt' | 'updatedAt' | 'createdBy'>) => {
+      const createdBy = state.currentUser.name;
+      if (USE_API) {
+        clearActionError();
+        const item = await api.createInventoryItem({ ...data, createdBy });
+        await refreshFromApi();
+        return item;
+      }
+      const ts = new Date().toISOString();
+      const id = `inv${Date.now()}`;
+      const item: InventoryItem = {
+        ...data,
+        id,
+        status: 'IN',
+        createdBy,
+        createdAt: ts,
+        updatedAt: ts,
+      };
+      const tx: InventoryTransaction = {
+        id: `itx${Date.now()}`,
+        inventoryItemId: id,
+        serialNumber: item.serialNumber,
+        action: 'IN',
+        transactionDate: ts,
+        fromLocation: 'Receiving',
+        toLocation: item.location,
+        person: createdBy,
+        reason: 'Initial receipt',
+        condition: 'Good',
+        createdBy,
+        createdAt: ts,
+      };
+      setState((prev) => ({
+        ...prev,
+        inventoryItems: upsertInventoryItem(prev.inventoryItems, item),
+        inventoryTransactions: appendInventoryTransaction(prev.inventoryTransactions, tx),
+      }));
+      return item;
+    },
+    [state.currentUser.name, clearActionError, refreshFromApi],
+  );
+
+  const updateInventoryItemMetaFn = useCallback(
+    async (
+      id: string,
+      data: Partial<Pick<InventoryItem, 'itemName' | 'category' | 'purchaseDate' | 'purchaseReference' | 'supplier' | 'notes'>>,
+    ) => {
+      if (USE_API) {
+        clearActionError();
+        const item = await api.updateInventoryItem(id, data);
+        setState((prev) => ({
+          ...prev,
+          inventoryItems: upsertInventoryItem(prev.inventoryItems, item),
+        }));
+        return item;
+      }
+      const existing = state.inventoryItems.find((i) => i.id === id);
+      if (!existing) throw new Error('Item not found');
+      const item = { ...existing, ...data, updatedAt: new Date().toISOString() };
+      setState((prev) => ({
+        ...prev,
+        inventoryItems: upsertInventoryItem(prev.inventoryItems, item),
+      }));
+      return item;
+    },
+    [state.inventoryItems, clearActionError],
+  );
+
+  const performStockOutFn = useCallback(
+    async (data: {
+      serialNumber: string;
+      fromLocation: string;
+      toLocation: string;
+      givenTo: string;
+      reason: string;
+      bookingId?: string;
+      notes?: string;
+    }) => {
+      const createdBy = state.currentUser.name;
+      if (USE_API) {
+        clearActionError();
+        const item = await api.stockOut(data);
+        await refreshFromApi();
+        return item;
+      }
+      const existing = state.inventoryItems.find((i) => i.serialNumber === data.serialNumber.trim());
+      if (!existing) throw new Error('Item not found');
+      if (existing.status !== 'IN') throw new Error('Item is not available (IN)');
+      const ts = new Date().toISOString();
+      const item: InventoryItem = {
+        ...existing,
+        status: 'OUT',
+        location: data.toLocation,
+        currentHolder: data.givenTo,
+        updatedAt: ts,
+      };
+      const tx: InventoryTransaction = {
+        id: `itx${Date.now()}`,
+        inventoryItemId: existing.id,
+        serialNumber: existing.serialNumber,
+        action: 'OUT',
+        transactionDate: ts,
+        fromLocation: data.fromLocation,
+        toLocation: data.toLocation,
+        person: data.givenTo,
+        reason: data.reason,
+        bookingId: data.bookingId,
+        notes: data.notes,
+        createdBy,
+        createdAt: ts,
+      };
+      setState((prev) => ({
+        ...prev,
+        inventoryItems: upsertInventoryItem(prev.inventoryItems, item),
+        inventoryTransactions: appendInventoryTransaction(prev.inventoryTransactions, tx),
+      }));
+      return item;
+    },
+    [state.currentUser.name, state.inventoryItems, clearActionError, refreshFromApi],
+  );
+
+  const performStockInFn = useCallback(
+    async (data: {
+      serialNumber: string;
+      fromLocation: string;
+      toLocation: string;
+      returnedBy: string;
+      condition: string;
+      reason: string;
+      bookingId?: string;
+      notes?: string;
+    }) => {
+      const createdBy = state.currentUser.name;
+      if (USE_API) {
+        clearActionError();
+        const item = await api.stockIn(data);
+        await refreshFromApi();
+        return item;
+      }
+      const existing = state.inventoryItems.find((i) => i.serialNumber === data.serialNumber.trim());
+      if (!existing) throw new Error('Item not found');
+      if (existing.status !== 'OUT') throw new Error('Item is not checked out (OUT)');
+      const ts = new Date().toISOString();
+      const item: InventoryItem = {
+        ...existing,
+        status: 'IN',
+        location: data.toLocation,
+        currentHolder: undefined,
+        updatedAt: ts,
+      };
+      const tx: InventoryTransaction = {
+        id: `itx${Date.now()}`,
+        inventoryItemId: existing.id,
+        serialNumber: existing.serialNumber,
+        action: 'IN',
+        transactionDate: ts,
+        fromLocation: data.fromLocation,
+        toLocation: data.toLocation,
+        person: data.returnedBy,
+        reason: data.reason,
+        bookingId: data.bookingId,
+        condition: data.condition,
+        notes: data.notes,
+        createdBy,
+        createdAt: ts,
+      };
+      setState((prev) => ({
+        ...prev,
+        inventoryItems: upsertInventoryItem(prev.inventoryItems, item),
+        inventoryTransactions: appendInventoryTransaction(prev.inventoryTransactions, tx),
+      }));
+      return item;
+    },
+    [state.currentUser.name, state.inventoryItems, clearActionError, refreshFromApi],
+  );
+
+  const searchInventoryBySerialFn = useCallback(
+    async (serial: string) => {
+      if (USE_API) {
+        return api.searchInventoryBySerial(serial);
+      }
+      const item = state.inventoryItems.find((i) => i.serialNumber === serial.trim());
+      if (!item) throw new Error('Item not found');
+      const transactions = state.inventoryTransactions
+        .filter((t) => t.inventoryItemId === item.id)
+        .sort((a, b) => b.transactionDate.localeCompare(a.transactionDate));
+      return { item, transactions };
+    },
+    [state.inventoryItems, state.inventoryTransactions],
+  );
+
+  const createKitchenPurchaseFn = useCallback(
+    async (data: Omit<KitchenPurchase, 'id' | 'totalCost' | 'createdBy' | 'createdAt'>) => {
+      const createdBy = state.currentUser.name;
+      const totalCost = Math.round(data.quantity * data.unitCost);
+      if (USE_API) {
+        clearActionError();
+        const purchase = await api.createKitchenPurchase(data);
+        await refreshFromApi();
+        return purchase;
+      }
+      const ts = new Date().toISOString();
+      const purchase: KitchenPurchase = { ...data, id: `kp${Date.now()}`, totalCost, createdBy, createdAt: ts };
+      setState((prev) => {
+        const existing = prev.kitchenStock.find((s) => s.item === data.item.trim());
+        const stockRow: KitchenStock = existing
+          ? {
+              ...existing,
+              currentQuantity: existing.currentQuantity + data.quantity,
+              category: data.category,
+              lastPurchaseDate: data.purchaseDate,
+              lastPurchaseCost: data.unitCost,
+              updatedAt: ts,
+            }
+          : {
+              id: `ks${Date.now()}`,
+              item: data.item.trim(),
+              category: data.category,
+              unit: data.unit,
+              currentQuantity: data.quantity,
+              minThreshold: 0,
+              lastPurchaseDate: data.purchaseDate,
+              lastPurchaseCost: data.unitCost,
+              updatedAt: ts,
+            };
+        return {
+          ...prev,
+          kitchenPurchases: appendKitchenPurchase(prev.kitchenPurchases, purchase),
+          kitchenStock: upsertKitchenStock(prev.kitchenStock, stockRow),
+        };
+      });
+      return purchase;
+    },
+    [state.currentUser.name, clearActionError, refreshFromApi],
+  );
+
+  const recordKitchenUsageFn = useCallback(
+    async (data: {
+      item: string;
+      quantity: number;
+      reason?: string;
+      bookingId?: string;
+      usedBy: string;
+      usedAt?: string;
+    }) => {
+      const createdBy = state.currentUser.name;
+      if (USE_API) {
+        clearActionError();
+        const stock = await api.recordKitchenStockUsage(data);
+        await refreshFromApi();
+        return stock;
+      }
+      const stock = state.kitchenStock.find((s) => s.item === data.item.trim());
+      if (!stock) throw new Error('Stock item not found');
+      if (stock.currentQuantity < data.quantity) throw new Error('Insufficient stock');
+      const ts = new Date().toISOString();
+      const usage: KitchenStockUsage = {
+        id: `ku${Date.now()}`,
+        item: data.item.trim(),
+        quantity: data.quantity,
+        unit: stock.unit,
+        reason: data.reason,
+        bookingId: data.bookingId,
+        usedBy: data.usedBy,
+        usedAt: data.usedAt ?? ts.split('T')[0],
+        createdBy,
+        createdAt: ts,
+      };
+      const updated: KitchenStock = {
+        ...stock,
+        currentQuantity: stock.currentQuantity - data.quantity,
+        updatedAt: ts,
+      };
+      setState((prev) => ({
+        ...prev,
+        kitchenStock: upsertKitchenStock(prev.kitchenStock, updated),
+        kitchenStockUsage: appendKitchenStockUsage(prev.kitchenStockUsage, usage),
+      }));
+      return updated;
+    },
+    [state.currentUser.name, state.kitchenStock, clearActionError, refreshFromApi],
+  );
+
   const value: AppContextType = {
     ...state,
     services,
@@ -1587,6 +1931,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     updateEventExpense,
     deleteEventExpense,
     getEventExpensesForBooking,
+    createInventoryItem: createInventoryItemFn,
+    updateInventoryItemMeta: updateInventoryItemMetaFn,
+    performStockOut: performStockOutFn,
+    performStockIn: performStockInFn,
+    searchInventoryBySerial: searchInventoryBySerialFn,
+    createKitchenPurchase: createKitchenPurchaseFn,
+    recordKitchenUsage: recordKitchenUsageFn,
     setCurrentUser,
     isAuthenticated,
     login,

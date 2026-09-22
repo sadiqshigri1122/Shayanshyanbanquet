@@ -45,7 +45,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 
 export function requireRole(...allowed: UserRole[]) {
   const minRequired = allowed.reduce<UserRole>((min, role) => {
-    const order = ['booking_office', 'manager', 'super_admin'] as const;
+    const order = ['booking_office', 'inventory_staff', 'manager', 'super_admin'] as const;
     return order.indexOf(role) < order.indexOf(min) ? role : min;
   }, allowed[0]);
 
@@ -62,6 +62,20 @@ export function requireRole(...allowed: UserRole[]) {
   };
 }
 
+export function requireAnyRole(...allowed: UserRole[]) {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      res.status(401).json({ error: 'Authentication required.' });
+      return;
+    }
+    if (!allowed.includes(req.user.role)) {
+      res.status(403).json({ error: 'You do not have permission to perform this action.' });
+      return;
+    }
+    next();
+  };
+}
+
 /** Restrict to booking office staff only — managers/admins may read but not mutate operational records. */
 export function requireOfficeRole() {
   return (req: Request, res: Response, next: NextFunction): void => {
@@ -71,6 +85,21 @@ export function requireOfficeRole() {
     }
     if (req.user.role !== 'booking_office') {
       res.status(403).json({ error: 'This action is limited to booking office staff.' });
+      return;
+    }
+    next();
+  };
+}
+
+/** Restrict to inventory staff only for inventory/kitchen mutations. */
+export function requireInventoryRole() {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      res.status(401).json({ error: 'Authentication required.' });
+      return;
+    }
+    if (req.user.role !== 'inventory_staff') {
+      res.status(403).json({ error: 'This action is limited to inventory staff.' });
       return;
     }
     next();

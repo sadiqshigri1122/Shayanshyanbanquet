@@ -4,6 +4,7 @@
 import type {
   User, Customer, Venue, Service, Booking, Payment,
   Expense, EventExpense, Notification, AuditLog, Package, ApprovalRequest, Receipt, SystemSettings,
+  InventoryItem, InventoryTransaction, KitchenPurchase, KitchenStock,
 } from '../types';
 import { getDayName } from '../utils/bookingUtils';
 import { HALL_SUB_VENUES } from '../utils/venueConfig';
@@ -28,6 +29,140 @@ export const users: User[] = [
   { id: 'u2', name: 'Ali Hassan', email: 'ali@shayanbanquet.pk', role: 'manager', phone: '0321-9876543', isActive: true, createdAt: '2026-01-10' },
   { id: 'u3', name: 'Admin', email: 'admin@shayanbanquet.pk', role: 'super_admin', isActive: true, createdAt: '2025-12-01' },
   { id: 'u4', name: 'Sara Bibi', email: 'sara@shayanbanquet.pk', role: 'booking_office', phone: '0333-1112233', isActive: true, createdAt: '2026-03-01' },
+  { id: 'u5', name: 'Usman Ali', email: 'inventory@shayanbanquet.pk', role: 'inventory_staff', phone: '0345-5556677', isActive: true, createdAt: '2026-04-01' },
+];
+
+export const initialInventoryItems: InventoryItem[] = [
+  {
+    id: 'inv1',
+    itemName: 'Gas Stove',
+    category: 'Kitchen Equipment',
+    serialNumber: 'SN-KIT-1002',
+    location: 'Kitchen',
+    status: 'OUT',
+    currentHolder: 'Chef Ahmed',
+    purchaseDate: '2026-01-10',
+    supplier: 'Kitchen Pro',
+    createdBy: 'Usman Ali',
+    createdAt: '2026-01-10T10:00:00.000Z',
+    updatedAt: '2026-09-19T10:30:00.000Z',
+  },
+  {
+    id: 'inv2',
+    itemName: 'Blender',
+    category: 'Kitchen Equipment',
+    serialNumber: 'SN-KIT-1005',
+    location: 'Kitchen Store',
+    status: 'IN',
+    purchaseDate: '2026-02-01',
+    supplier: 'Kitchen Pro',
+    createdBy: 'Usman Ali',
+    createdAt: '2026-02-01T09:00:00.000Z',
+    updatedAt: '2026-09-19T14:00:00.000Z',
+  },
+];
+
+export const initialInventoryTransactions: InventoryTransaction[] = [
+  {
+    id: 'itx1',
+    inventoryItemId: 'inv1',
+    serialNumber: 'SN-KIT-1002',
+    action: 'OUT',
+    transactionDate: '2026-09-19T10:30:00.000Z',
+    fromLocation: 'Kitchen Store',
+    toLocation: 'Kitchen',
+    person: 'Chef Ahmed',
+    reason: 'Event / Kitchen Use',
+    bookingId: 'b1',
+    createdBy: 'Usman Ali',
+    createdAt: '2026-09-19T10:30:00.000Z',
+  },
+  {
+    id: 'itx2',
+    inventoryItemId: 'inv1',
+    serialNumber: 'SN-KIT-1002',
+    action: 'IN',
+    transactionDate: '2026-09-17T16:00:00.000Z',
+    fromLocation: 'Kitchen',
+    toLocation: 'Kitchen Store',
+    person: 'Chef Ahmed',
+    reason: 'Returned after event',
+    condition: 'Good',
+    createdBy: 'Usman Ali',
+    createdAt: '2026-09-17T16:00:00.000Z',
+  },
+  {
+    id: 'itx3',
+    inventoryItemId: 'inv2',
+    serialNumber: 'SN-KIT-1005',
+    action: 'IN',
+    transactionDate: '2026-09-19T14:00:00.000Z',
+    fromLocation: 'Kitchen',
+    toLocation: 'Kitchen Store',
+    person: 'Chef Ahmed',
+    reason: 'Returned',
+    condition: 'Good',
+    createdBy: 'Usman Ali',
+    createdAt: '2026-09-19T14:00:00.000Z',
+  },
+];
+
+export const initialKitchenPurchases: KitchenPurchase[] = [
+  {
+    id: 'kp1',
+    purchaseDate: '2026-09-19',
+    item: 'Chicken',
+    category: 'Meat & Poultry',
+    quantity: 50,
+    unit: 'KG',
+    unitCost: 850,
+    totalCost: 42500,
+    supplier: 'Fresh Poultry',
+    purchasedBy: 'Ahmed',
+    receivedBy: 'Usman Ali',
+    createdBy: 'Usman Ali',
+    createdAt: '2026-09-19T08:00:00.000Z',
+  },
+  {
+    id: 'kp2',
+    purchaseDate: '2026-09-18',
+    item: 'Rice',
+    category: 'Rice & Grains',
+    quantity: 100,
+    unit: 'KG',
+    unitCost: 320,
+    totalCost: 32000,
+    supplier: 'Grain Mart',
+    purchasedBy: 'Usman',
+    receivedBy: 'Usman Ali',
+    createdBy: 'Usman Ali',
+    createdAt: '2026-09-18T09:00:00.000Z',
+  },
+];
+
+export const initialKitchenStock: KitchenStock[] = [
+  {
+    id: 'ks1',
+    item: 'Rice',
+    category: 'Rice & Grains',
+    unit: 'KG',
+    currentQuantity: 120,
+    minThreshold: 50,
+    lastPurchaseDate: '2026-09-18',
+    lastPurchaseCost: 320,
+    updatedAt: '2026-09-19T08:00:00.000Z',
+  },
+  {
+    id: 'ks2',
+    item: 'Chicken',
+    category: 'Meat & Poultry',
+    unit: 'KG',
+    currentQuantity: 35,
+    minThreshold: 40,
+    lastPurchaseDate: '2026-09-19',
+    lastPurchaseCost: 850,
+    updatedAt: '2026-09-19T08:00:00.000Z',
+  },
 ];
 
 // --- Customers ---

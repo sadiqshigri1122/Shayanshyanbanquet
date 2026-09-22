@@ -1,6 +1,6 @@
 import type { UserRole } from '../types';
 
-export type DashboardRole = 'office' | 'manager' | 'admin';
+export type DashboardRole = 'office' | 'inventory' | 'manager' | 'admin';
 
 export type StaffCapability =
   | 'create_booking'
@@ -13,7 +13,12 @@ export type StaffCapability =
   | 'view_reports'
   | 'manage_users'
   | 'manage_settings'
-  | 'view_audit';
+  | 'view_audit'
+  | 'manage_inventory'
+  | 'view_inventory'
+  | 'manage_kitchen'
+  | 'view_kitchen'
+  | 'inventory_reports';
 
 /** Routes mirrored under /manager and /admin for read-only oversight pages. */
 export const SHARED_STAFF_SEGMENTS = [
@@ -25,6 +30,7 @@ export const SHARED_STAFF_SEGMENTS = [
 
 const DASHBOARD_PREFIX: Record<DashboardRole, string> = {
   office: '/office',
+  inventory: '/inventory',
   manager: '/manager',
   admin: '/admin',
 };
@@ -37,12 +43,23 @@ const CAPABILITIES: Record<UserRole, ReadonlySet<StaffCapability>> = {
     'edit_booking',
     'manage_event_day',
   ]),
-  manager: new Set(['approve_requests', 'manage_expenses', 'view_reports']),
+  inventory_staff: new Set(['manage_inventory', 'view_inventory', 'manage_kitchen', 'view_kitchen']),
+  manager: new Set([
+    'approve_requests',
+    'manage_expenses',
+    'view_reports',
+    'view_inventory',
+    'view_kitchen',
+    'inventory_reports',
+  ]),
   super_admin: new Set([
     'manage_users',
     'manage_settings',
     'view_audit',
     'view_reports',
+    'view_inventory',
+    'view_kitchen',
+    'inventory_reports',
   ]),
 };
 
@@ -61,6 +78,7 @@ export function hasCapability(role: UserRole, capability: StaffCapability): bool
 
 export function canAccessDashboard(role: UserRole, dashboard: DashboardRole): boolean {
   if (dashboard === 'office') return role === 'booking_office';
+  if (dashboard === 'inventory') return role === 'inventory_staff';
   if (dashboard === 'manager') return role === 'manager' || role === 'super_admin';
   return role === 'super_admin';
 }
@@ -68,12 +86,14 @@ export function canAccessDashboard(role: UserRole, dashboard: DashboardRole): bo
 export function dashboardPathForRole(role: UserRole): string {
   if (role === 'super_admin') return '/admin';
   if (role === 'manager') return '/manager';
+  if (role === 'inventory_staff') return '/inventory';
   return '/office';
 }
 
 export function dashboardRoleFromPath(pathname: string): DashboardRole | null {
   if (pathname.startsWith('/admin')) return 'admin';
   if (pathname.startsWith('/manager')) return 'manager';
+  if (pathname.startsWith('/inventory')) return 'inventory';
   if (pathname.startsWith('/office')) return 'office';
   return null;
 }
