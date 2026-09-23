@@ -73,13 +73,12 @@ export default function DashboardLayout({ role }: Props) {
     notifications,
     currentUser,
     users,
-    bookings,
-    apiLoading,
+    dataReady,
+    apiMode,
     setCurrentUser,
     markAllNotificationsRead,
     markNotificationRead,
     logout,
-    apiMode,
   } = useApp();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
@@ -330,7 +329,7 @@ export default function DashboardLayout({ role }: Props) {
 
         <main className="dashboard-main flex-1 p-3 sm:p-4 lg:p-6 overflow-y-auto overflow-x-hidden max-w-[1400px] w-full mx-auto print:p-0">
           <DashboardProvider dashboard={role}>
-            {apiLoading && bookings.length === 0 ? <DashboardLoading /> : <Outlet />}
+            {apiMode && !dataReady ? <DashboardLoading label="Loading data…" /> : <Outlet />}
           </DashboardProvider>
         </main>
       </div>

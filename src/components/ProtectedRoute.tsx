@@ -23,11 +23,13 @@ function redirectTarget(role: import('../types').UserRole, pathname: string): st
 }
 
 export default function ProtectedRoute({ dashboard }: Props) {
-  const { isAuthenticated, authChecking, currentUser } = useApp();
+  const { isAuthenticated, authChecking, dataReady, apiMode, currentUser } = useApp();
   const location = useLocation();
 
-  if (authChecking) {
-    return <DashboardLoading label="Verifying session…" />;
+  if (authChecking || (apiMode && isAuthenticated && !dataReady)) {
+    return (
+      <DashboardLoading label={authChecking ? 'Verifying session…' : 'Loading data…'} />
+    );
   }
 
   if (!isAuthenticated) {

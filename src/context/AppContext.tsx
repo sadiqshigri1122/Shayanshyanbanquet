@@ -215,6 +215,8 @@ interface AppContextType extends AppState {
   ) => Promise<{ ok: true; user: User } | { ok: false; error: string }>;
   logout: () => void;
   apiMode: boolean;
+  /** False in API mode until the first successful /api/state fetch. */
+  dataReady: boolean;
   apiLoading: boolean;
   apiError: string | null;
   actionError: string | null;
@@ -266,6 +268,28 @@ const defaultState: AppState = {
   kitchenStockUsage: [],
 };
 
+/** API mode starts empty — only database data is shown after hydration. */
+const emptyApiState: AppState = {
+  bookings: [],
+  customers: [],
+  payments: [],
+  expenses: [],
+  eventExpenses: [],
+  notifications: [],
+  auditLogs: [],
+  approvals: [],
+  receipts: [],
+  settings: initialSettings,
+  users: [],
+  currentUser,
+  venues: [],
+  inventoryItems: [],
+  inventoryTransactions: [],
+  kitchenPurchases: [],
+  kitchenStock: [],
+  kitchenStockUsage: [],
+};
+
 const AppContext = createContext<AppContextType | null>(null);
 
 function loadState(): AppState {
@@ -299,17 +323,7 @@ function loadState(): AppState {
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AppState>(() => {
-    const base = USE_API ? defaultState : loadState();
-    const storedAuth = loadStoredAuth();
-    if (storedAuth) {
-      const user = base.users.find((u) => u.id === storedAuth.userId && u.isActive);
-      if (user) {
-        return { ...base, currentUser: user };
-      }
-    }
-    return base;
-  });
+  const [state, setState] = useState<AppState>(() => (USE_API ? emptyApiState : loadState()));
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     if (USE_API) return false;
     const storedAuth = loadStoredAuth();
@@ -319,6 +333,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [authChecking, setAuthChecking] = useState(
     () => USE_API && Boolean(loadStoredAuth()?.token),
   );
+  const [dataReady, setDataReady] = useState(() => !USE_API);
   const [apiLoading, setApiLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -369,6 +384,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const task = (async () => {
       const data = await api.getState();
       setState(applyApiState(data));
+      setDataReady(true);
       setApiError(null);
     })();
 
@@ -1261,6 +1277,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           // Set currentUser together with API data before marking authenticated,
           // so route guards never see the default demo user (booking office).
           setState(applyApiState(data, user));
+          setDataReady(true);
           setIsAuthenticated(true);
           return { ok: true as const, user };
         } catch (err) {
@@ -1301,7 +1318,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setAuthToken(null);
     clearStoredAuth();
     setIsAuthenticated(false);
-    setState((prev) => ({ ...prev, currentUser }));
+    if (USE_API) {
+      setState(emptyApiState);
+      setDataReady(false);
+    } else {
+      setState((prev) => ({ ...prev, currentUser }));
+    }
   }, []);
 
   const updateBookingCharges = useCallback(
@@ -2026,6 +2048,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     login,
     logout,
     apiMode: USE_API,
+    dataReady,
     apiLoading,
     apiError,
     actionError,
