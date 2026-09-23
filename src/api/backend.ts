@@ -52,6 +52,10 @@ export interface ApiAppState {
   venues: import('../types').Venue[];
   inventoryItems: import('../types').InventoryItem[];
   inventoryTransactions: import('../types').InventoryTransaction[];
+  inventoryItemTypes: import('../types').InventoryItemType[];
+  inventoryStockBalances: import('../types').InventoryStockBalance[];
+  inventoryQuantityMovements: import('../types').InventoryQuantityMovement[];
+  eventInventoryLines: import('../types').EventInventoryLine[];
   kitchenPurchases: import('../types').KitchenPurchase[];
   kitchenStock: import('../types').KitchenStock[];
   kitchenStockUsage: import('../types').KitchenStockUsage[];
@@ -176,7 +180,15 @@ export const api = {
       created: number;
       items: import('../types').InventoryItem[];
       errors: { index: number; serialNumber: string; error: string }[];
+      serialNumbers?: string[];
     }>('/api/inventory/items/bulk', { method: 'POST', body: JSON.stringify(body) }),
+  createInventoryItemsByQuantity: (body: unknown) =>
+    request<{
+      created: number;
+      items: import('../types').InventoryItem[];
+      errors: { index: number; serialNumber: string; error: string }[];
+      serialNumbers: string[];
+    }>('/api/inventory/items/by-quantity', { method: 'POST', body: JSON.stringify(body) }),
   updateInventoryItem: (id: string, body: unknown) =>
     request<import('../types').InventoryItem>(`/api/inventory/items/${encodeURIComponent(id)}`, {
       method: 'PATCH',
@@ -192,11 +204,57 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+  transferInventory: (body: unknown) =>
+    request<{ transferred: number; items: import('../types').InventoryItem[] }>(
+      '/api/inventory/transfer',
+      { method: 'POST', body: JSON.stringify(body) },
+    ),
+  updateInventoryStatus: (body: unknown) =>
+    request<import('../types').InventoryItem>('/api/inventory/status', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
   searchInventoryBySerial: (serial: string) =>
     request<{
       item: import('../types').InventoryItem;
       transactions: import('../types').InventoryTransaction[];
     }>(`/api/inventory/search/${encodeURIComponent(serial)}`),
+  getInventoryMaster: () => request<import('../types').InventoryMasterRow[]>('/api/inventory/master'),
+  getInventoryDashboardMetrics: () => request<Record<string, unknown>>('/api/inventory/dashboard-metrics'),
+  getLocationInventory: (location?: string) =>
+    request<Array<Record<string, unknown>>>(
+      `/api/inventory/locations${location ? `?location=${encodeURIComponent(location)}` : ''}`,
+    ),
+  getInventoryItemTypes: () => request<import('../types').InventoryItemType[]>('/api/inventory/item-types'),
+  upsertEventInventoryRequirement: (bookingId: string, body: unknown) =>
+    request<import('../types').EventInventoryLine>(`/api/bookings/${encodeURIComponent(bookingId)}/event-inventory/requirement`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  reserveEventInventory: (lineId: string, body: unknown) =>
+    request<import('../types').EventInventoryLine>(`/api/event-inventory/${encodeURIComponent(lineId)}/reserve`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  issueEventInventory: (lineId: string, body: unknown) =>
+    request<import('../types').EventInventoryLine>(`/api/event-inventory/${encodeURIComponent(lineId)}/issue`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  returnEventInventory: (lineId: string, body: unknown) =>
+    request<import('../types').EventInventoryLine>(`/api/event-inventory/${encodeURIComponent(lineId)}/return`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  getEventInventoryReport: (bookingId?: string) =>
+    request<Array<Record<string, unknown>>>(
+      `/api/inventory/reports/event-inventory${bookingId ? `?bookingId=${encodeURIComponent(bookingId)}` : ''}`,
+    ),
+  recordInventoryAdjustment: (body: unknown) =>
+    request<Record<string, unknown>>('/api/inventory/quantity/adjustment', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
   createKitchenPurchase: (body: unknown) =>
     request<import('../types').KitchenPurchase>('/api/kitchen/purchases', {
       method: 'POST',

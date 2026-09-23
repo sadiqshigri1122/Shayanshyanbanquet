@@ -128,8 +128,9 @@ export default function ManagerDashboard() {
         <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-4">
           {[
             { label: 'Inventory Items', value: inventoryItems.length, link: '/manager/inventory-reports' },
-            { label: 'Items IN', value: inventoryItems.filter((i) => i.status === 'IN').length },
-            { label: 'Items OUT', value: inventoryItems.filter((i) => i.status === 'OUT').length },
+            { label: 'Available', value: inventoryItems.filter((i) => i.status === 'AVAILABLE').length },
+            { label: 'Missing', value: inventoryItems.filter((i) => i.status === 'MISSING').length, warn: inventoryItems.some((i) => i.status === 'MISSING') },
+            { label: 'Checked Out', value: inventoryItems.filter((i) => i.status === 'OUT').length },
             { label: 'Overdue OUT', value: overdueCount, warn: overdueCount > 0, link: '/manager/inventory-reports' },
             { label: 'Kitchen Purchases (Month)', value: kitchenPurchasesThisMonth.length },
             { label: 'Low Stock Items', value: lowStockCount, warn: lowStockCount > 0 },

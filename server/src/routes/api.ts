@@ -30,13 +30,39 @@ import {
 import { authRouter } from './auth.js';
 import { createUser, deleteUser, setUserPassword, updateUser } from '../services/userService.js';
 import {
+  bulkCreateInventoryItems,
   createInventoryItem,
+  createInventoryItemsByQuantity,
+  createQuantityStockIn,
   getInventoryItemBySerial,
+  listInventoryItemTypes,
+  listQuantityMovements,
+  recordInventoryAdjustment,
+  recordQuantityStockOut,
+  recordQuantityTransfer,
   recordStockIn,
   recordStockOut,
+  recordTransfer,
   updateInventoryItem,
-  bulkCreateInventoryItems,
+  updateInventoryItemStatus,
 } from '../services/inventoryService.js';
+import {
+  getDashboardMetrics,
+  getDamagedReport,
+  getInventoryMaster,
+  getLocationInventory,
+  getMissingReport,
+  getRecentMovements,
+  getSerialAssetReport,
+} from '../services/inventoryCalculationService.js';
+import {
+  getEventInventoryReport,
+  issueEventInventory,
+  listEventInventoryLines,
+  reserveEventInventory,
+  returnEventInventory,
+  upsertEventInventoryRequirement,
+} from '../services/eventInventoryService.js';
 import {
   createKitchenPurchase,
   recordKitchenStockUsage,
@@ -96,7 +122,7 @@ apiRouter.get(
   handle(async () => ({
     ok: true,
     service: 'shayan-banquet-api',
-    apiVersion: '2026-09-23-inventory',
+    apiVersion: '2026-09-23-inventory-v2',
     roles: USER_ROLES,
   })),
 );
@@ -318,10 +344,12 @@ const inventoryItemBodySchema = z.object({
   category: z.string().min(1).max(100),
   serialNumber: z.string().min(1).max(100),
   location: z.string().min(1).max(200),
+  condition: z.string().max(100).optional(),
   purchaseDate: z.string().optional(),
   purchaseReference: z.string().max(100).optional(),
   supplier: z.string().max(200).optional(),
   notes: z.string().max(1000).optional(),
+  itemTypeId: z.string().optional(),
 });
 
 apiRouter.post(
@@ -343,6 +371,29 @@ apiRouter.post(
       })
       .parse(req.body);
     return bulkCreateInventoryItems(body.items, actorName(req));
+  }),
+);
+
+apiRouter.post(
+  '/inventory/items/by-quantity',
+  ...inventoryWrite,
+  handle(async (req) => {
+    const body = z
+      .object({
+        itemName: z.string().min(1).max(200),
+        category: z.string().min(1).max(100),
+        location: z.string().min(1).max(200),
+        quantity: z.number().int().min(1).max(500),
+        serialTracking: z.boolean().optional(),
+        unit: z.string().max(50).optional(),
+        condition: z.string().max(100).optional(),
+        purchaseDate: z.string().optional(),
+        purchaseReference: z.string().max(100).optional(),
+        supplier: z.string().max(200).optional(),
+        notes: z.string().max(1000).optional(),
+      })
+      .parse(req.body);
+    return createInventoryItemsByQuantity(body, actorName(req));
   }),
 );
 
@@ -403,12 +454,285 @@ apiRouter.post(
   }),
 );
 
+apiRouter.post(
+  '/inventory/transfer',
+  ...inventoryWrite,
+  handle(async (req) => {
+    const body = z
+      .object({
+        serialNumbers: z.array(z.string().min(1).max(100)).min(1).max(500),
+        fromLocation: z.string().min(1).max(200),
+        toLocation: z.string().min(1).max(200),
+        reason: z.string().min(1).max(500),
+        notes: z.string().max(1000).optional(),
+      })
+      .parse(req.body);
+    return recordTransfer(body, actorName(req));
+  }),
+);
+
+const inventoryStatusWrite = [
+  requireAuth,
+  requireAnyRole('inventory_staff', 'manager', 'super_admin'),
+];
+
+apiRouter.post(
+  '/inventory/status',
+  ...inventoryStatusWrite,
+  handle(async (req) => {
+    const body = z
+      .object({
+        serialNumber: z.string().min(1).max(100),
+        status: z.enum(['MISSING', 'DAMAGED', 'AVAILABLE', 'UNDER_MAINTENANCE', 'RETIRED']),
+        reason: z.string().min(1).max(500),
+        notes: z.string().max(1000).optional(),
+        repairCost: z.number().min(0).optional(),
+      })
+      .parse(req.body);
+    return updateInventoryItemStatus(body, actorName(req));
+  }),
+);
+
 apiRouter.get(
   '/inventory/search/:serial',
   ...inventoryRead,
   handle(async (req) => {
     const serial = paramId(req, 'serial');
     return getInventoryItemBySerial(serial);
+  }),
+);
+
+apiRouter.get(
+  '/inventory/item-types',
+  ...inventoryRead,
+  handle(async () => listInventoryItemTypes()),
+);
+
+apiRouter.get(
+  '/inventory/master',
+  ...inventoryRead,
+  handle(async () => getInventoryMaster()),
+);
+
+apiRouter.get(
+  '/inventory/locations',
+  ...inventoryRead,
+  handle(async (req) => {
+    const location = typeof req.query.location === 'string' ? req.query.location : undefined;
+    return getLocationInventory(location);
+  }),
+);
+
+apiRouter.get(
+  '/inventory/dashboard-metrics',
+  ...inventoryRead,
+  handle(async () => getDashboardMetrics()),
+);
+
+apiRouter.get(
+  '/inventory/reports/missing',
+  ...inventoryRead,
+  handle(async () => getMissingReport()),
+);
+
+apiRouter.get(
+  '/inventory/reports/damaged',
+  ...inventoryRead,
+  handle(async () => getDamagedReport()),
+);
+
+apiRouter.get(
+  '/inventory/reports/serials',
+  ...inventoryRead,
+  handle(async (req) => {
+    const status = typeof req.query.status === 'string' ? req.query.status : undefined;
+    const location = typeof req.query.location === 'string' ? req.query.location : undefined;
+    const itemTypeId = typeof req.query.itemTypeId === 'string' ? req.query.itemTypeId : undefined;
+    return getSerialAssetReport({ status, location, itemTypeId });
+  }),
+);
+
+apiRouter.get(
+  '/inventory/reports/movements',
+  ...inventoryRead,
+  handle(async (req) => {
+    const limit = typeof req.query.limit === 'string' ? Number(req.query.limit) : 50;
+    return getRecentMovements(Number.isFinite(limit) ? limit : 50);
+  }),
+);
+
+apiRouter.get(
+  '/inventory/reports/event-inventory',
+  ...inventoryRead,
+  handle(async (req) => {
+    const bookingId = typeof req.query.bookingId === 'string' ? req.query.bookingId : undefined;
+    return getEventInventoryReport(bookingId);
+  }),
+);
+
+apiRouter.post(
+  '/inventory/quantity/stock-in',
+  ...inventoryWrite,
+  handle(async (req) => {
+    const body = z
+      .object({
+        itemName: z.string().min(1).max(200),
+        category: z.string().min(1).max(100),
+        location: z.string().min(1).max(200),
+        quantity: z.number().int().min(1).max(5000),
+        unit: z.string().max(50).optional(),
+        reason: z.string().min(1).max(500),
+        reference: z.string().max(100).optional(),
+        notes: z.string().max(1000).optional(),
+        supplier: z.string().max(200).optional(),
+        itemTypeId: z.string().optional(),
+      })
+      .parse(req.body);
+    return createQuantityStockIn(body, actorName(req));
+  }),
+);
+
+apiRouter.post(
+  '/inventory/quantity/stock-out',
+  ...inventoryWrite,
+  handle(async (req) => {
+    const body = z
+      .object({
+        itemTypeId: z.string().min(1),
+        location: z.string().min(1).max(200),
+        quantity: z.number().int().min(1),
+        reason: z.string().min(1).max(500),
+        reference: z.string().max(100).optional(),
+        toLocation: z.string().max(200).optional(),
+        bookingId: z.string().optional(),
+        notes: z.string().max(1000).optional(),
+      })
+      .parse(req.body);
+    return recordQuantityStockOut(body, actorName(req));
+  }),
+);
+
+apiRouter.post(
+  '/inventory/quantity/transfer',
+  ...inventoryWrite,
+  handle(async (req) => {
+    const body = z
+      .object({
+        itemTypeId: z.string().min(1),
+        fromLocation: z.string().min(1).max(200),
+        toLocation: z.string().min(1).max(200),
+        quantity: z.number().int().min(1),
+        reason: z.string().min(1).max(500),
+        notes: z.string().max(1000).optional(),
+      })
+      .parse(req.body);
+    return recordQuantityTransfer(body, actorName(req));
+  }),
+);
+
+apiRouter.post(
+  '/inventory/quantity/adjustment',
+  ...inventoryWrite,
+  handle(async (req) => {
+    const body = z
+      .object({
+        itemTypeId: z.string().min(1),
+        location: z.string().min(1).max(200),
+        adjustmentQty: z.number().int(),
+        reason: z.string().min(1).max(500),
+        reference: z.string().max(100).optional(),
+        notes: z.string().max(1000).optional(),
+      })
+      .parse(req.body);
+    return recordInventoryAdjustment(body, actorName(req));
+  }),
+);
+
+apiRouter.get(
+  '/inventory/quantity/movements',
+  ...inventoryRead,
+  handle(async (req) => {
+    const itemTypeId = typeof req.query.itemTypeId === 'string' ? req.query.itemTypeId : undefined;
+    const action = typeof req.query.action === 'string' ? req.query.action : undefined;
+    const fromDate = typeof req.query.fromDate === 'string' ? req.query.fromDate : undefined;
+    const toDate = typeof req.query.toDate === 'string' ? req.query.toDate : undefined;
+    return listQuantityMovements({ itemTypeId, action, fromDate, toDate });
+  }),
+);
+
+apiRouter.get(
+  '/bookings/:id/event-inventory',
+  ...inventoryRead,
+  handle(async (req) => listEventInventoryLines(paramId(req))),
+);
+
+apiRouter.post(
+  '/bookings/:id/event-inventory/requirement',
+  ...inventoryWrite,
+  handle(async (req) => {
+    const body = z
+      .object({
+        itemTypeId: z.string().min(1),
+        requiredQty: z.number().int().min(1),
+        notes: z.string().max(1000).optional(),
+      })
+      .parse(req.body);
+    return upsertEventInventoryRequirement(
+      { bookingId: paramId(req), ...body },
+      actorName(req),
+    );
+  }),
+);
+
+apiRouter.post(
+  '/event-inventory/:lineId/reserve',
+  ...inventoryWrite,
+  handle(async (req) => {
+    const body = z
+      .object({
+        quantity: z.number().int().min(1),
+        serialNumbers: z.array(z.string()).optional(),
+        location: z.string().max(200).optional(),
+      })
+      .parse(req.body);
+    return reserveEventInventory({ eventLineId: paramId(req, 'lineId'), ...body }, actorName(req));
+  }),
+);
+
+apiRouter.post(
+  '/event-inventory/:lineId/issue',
+  ...inventoryWrite,
+  handle(async (req) => {
+    const body = z
+      .object({
+        quantity: z.number().int().min(1),
+        serialNumbers: z.array(z.string()).optional(),
+        issuedTo: z.string().min(1).max(200),
+        notes: z.string().max(1000).optional(),
+      })
+      .parse(req.body);
+    return issueEventInventory({ eventLineId: paramId(req, 'lineId'), ...body }, actorName(req));
+  }),
+);
+
+apiRouter.post(
+  '/event-inventory/:lineId/return',
+  ...inventoryWrite,
+  handle(async (req) => {
+    const body = z
+      .object({
+        returnedQty: z.number().int().min(0),
+        serialNumbers: z.array(z.string()).optional(),
+        toLocation: z.string().min(1).max(200),
+        returnedBy: z.string().min(1).max(200),
+        missingQty: z.number().int().min(0).optional(),
+        damagedQty: z.number().int().min(0).optional(),
+        missingSerials: z.array(z.string()).optional(),
+        damagedSerials: z.array(z.string()).optional(),
+        notes: z.string().max(1000).optional(),
+      })
+      .parse(req.body);
+    return returnEventInventory({ eventLineId: paramId(req, 'lineId'), ...body }, actorName(req));
   }),
 );
 

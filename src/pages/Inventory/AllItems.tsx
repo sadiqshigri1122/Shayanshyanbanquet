@@ -5,16 +5,16 @@ import { useDashboard } from '../../context/DashboardContext';
 import InventoryStatusBadge from '../../components/InventoryStatusBadge';
 import InventoryItemDetailModal from '../../components/InventoryItemDetailModal';
 import Modal from '../../components/Modal';
-import { getDaysOut, isOverdueOut } from '../../utils/inventoryUtils';
+import { buildInventorySummaries, getDaysOut, isOverdueOut, normalizeInventoryStatus } from '../../utils/inventoryUtils';
 import ModalField, { modalFormClass, modalInputClass, modalSelectClass, modalTextareaClass } from '../../components/ModalField';
 import { INVENTORY_CATEGORIES } from '../../types';
 import { getErrorMessage } from '../../utils/errorMessage';
 
 export default function AllItems() {
-  const { inventoryItems, inventoryTransactions, updateInventoryItemMeta, currentUser } = useApp();
+  const { inventoryItems, inventoryTransactions, updateInventoryItemMeta, updateInventoryItemStatus, currentUser } = useApp();
   const { path } = useDashboard();
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'IN' | 'OUT'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'AVAILABLE' | 'MISSING' | 'DAMAGED' | 'OUT'>('all');
   const [locationFilter, setLocationFilter] = useState('all');
   const [detailId, setDetailId] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
@@ -22,11 +22,16 @@ export default function AllItems() {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const locations = useMemo(() => [...new Set(inventoryItems.map((i) => i.location))].sort(), [inventoryItems]);
-  const detailItem = detailId ? inventoryItems.find((i) => i.id === detailId) : null;
+  const normalizedItems = useMemo(
+    () => inventoryItems.map((i) => ({ ...i, status: normalizeInventoryStatus(i.status) })),
+    [inventoryItems],
+  );
+  const summaries = useMemo(() => buildInventorySummaries(normalizedItems), [normalizedItems]);
+  const locations = useMemo(() => [...new Set(normalizedItems.map((i) => i.location))].sort(), [normalizedItems]);
+  const detailItem = detailId ? normalizedItems.find((i) => i.id === detailId) : null;
 
   const filtered = useMemo(() => {
-    return inventoryItems.filter((i) => {
+    return normalizedItems.filter((i) => {
       if (statusFilter !== 'all' && i.status !== statusFilter) return false;
       if (locationFilter !== 'all' && i.location !== locationFilter) return false;
       const q = search.trim().toLowerCase();
@@ -38,7 +43,7 @@ export default function AllItems() {
         (i.currentHolder?.toLowerCase().includes(q) ?? false)
       );
     });
-  }, [inventoryItems, search, statusFilter, locationFilter]);
+  }, [normalizedItems, search, statusFilter, locationFilter]);
 
   const openEdit = (id: string) => {
     const item = inventoryItems.find((i) => i.id === id);
@@ -93,16 +98,31 @@ export default function AllItems() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <select className={`${modalSelectClass} sm:w-40`} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}>
+        <select className={`${modalSelectClass} sm:w-44`} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}>
           <option value="all">All status</option>
-          <option value="IN">IN</option>
-          <option value="OUT">OUT</option>
+          <option value="AVAILABLE">Available</option>
+          <option value="MISSING">Missing</option>
+          <option value="DAMAGED">Damaged</option>
+          <option value="OUT">Checked Out</option>
         </select>
         <select className={`${modalSelectClass} sm:w-48`} value={locationFilter} onChange={(e) => setLocationFilter(e.target.value)}>
           <option value="all">All locations</option>
           {locations.map((l) => <option key={l} value={l}>{l}</option>)}
         </select>
       </div>
+
+      {summaries.length > 0 && (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {summaries.slice(0, 6).map((s) => (
+            <div key={s.itemName} className="card !py-3 text-sm">
+              <p className="font-semibold">{s.itemName} — Total: {s.total}</p>
+              <p className="text-muted mt-1">
+                Available {s.available} · Missing {s.missing} · Damaged {s.damaged}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="card !p-0 overflow-x-auto">
         <table className="w-full min-w-[900px] text-sm">
@@ -163,6 +183,8 @@ export default function AllItems() {
           stockOutPath={path('/stock-out')}
           stockInPath={path('/stock-in')}
           showActions={currentUser.role === 'inventory_staff'}
+          canUpdateStatus={currentUser.role === 'inventory_staff' || currentUser.role === 'manager'}
+          onUpdateStatus={updateInventoryItemStatus}
         />
       )}
 

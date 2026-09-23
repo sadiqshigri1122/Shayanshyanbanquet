@@ -26,6 +26,11 @@ import type {
   Venue,
   InventoryItem,
   InventoryTransaction,
+  InventoryItemType,
+  InventoryStockBalance,
+  InventoryQuantityMovement,
+  EventInventoryLine,
+  InventoryMasterRow,
   KitchenPurchase,
   KitchenStock,
   KitchenStockUsage,
@@ -69,6 +74,7 @@ import {
   saveStoredAuth,
 } from '../utils/authUtils';
 import { getErrorMessage } from '../utils/errorMessage';
+import { previewQuantitySerials, buildInventorySummaries, normalizeInventoryStatus } from '../utils/inventoryUtils';
 import {
   appendCustomer,
   appendEventExpense,
@@ -109,6 +115,10 @@ interface AppState {
   venues: Venue[];
   inventoryItems: InventoryItem[];
   inventoryTransactions: InventoryTransaction[];
+  inventoryItemTypes: InventoryItemType[];
+  inventoryStockBalances: InventoryStockBalance[];
+  inventoryQuantityMovements: InventoryQuantityMovement[];
+  eventInventoryLines: EventInventoryLine[];
   kitchenPurchases: KitchenPurchase[];
   kitchenStock: KitchenStock[];
   kitchenStockUsage: KitchenStockUsage[];
@@ -173,6 +183,19 @@ interface AppContextType extends AppState {
   bulkCreateInventoryItems: (
     items: Array<Omit<InventoryItem, 'id' | 'status' | 'createdAt' | 'updatedAt' | 'createdBy'>>,
   ) => Promise<{ created: number; errors: { index: number; serialNumber: string; error: string }[] }>;
+  createInventoryItemsByQuantity: (data: {
+    itemName: string;
+    category: string;
+    location: string;
+    quantity: number;
+    serialTracking?: boolean;
+    unit?: string;
+    condition?: string;
+    purchaseDate?: string;
+    purchaseReference?: string;
+    supplier?: string;
+    notes?: string;
+  }) => Promise<{ created: number; serialNumbers: string[]; errors: { index: number; serialNumber: string; error: string }[] }>;
   updateInventoryItemMeta: (id: string, data: Partial<Pick<InventoryItem, 'itemName' | 'category' | 'purchaseDate' | 'purchaseReference' | 'supplier' | 'notes'>>) => Promise<InventoryItem>;
   performStockOut: (data: {
     serialNumber: string;
@@ -193,6 +216,35 @@ interface AppContextType extends AppState {
     bookingId?: string;
     notes?: string;
   }) => Promise<InventoryItem>;
+  performTransfer: (data: {
+    serialNumbers: string[];
+    fromLocation: string;
+    toLocation: string;
+    reason: string;
+    notes?: string;
+  }) => Promise<{ transferred: number }>;
+  updateInventoryItemStatus: (data: {
+    serialNumber: string;
+    status: 'MISSING' | 'DAMAGED' | 'AVAILABLE' | 'UNDER_MAINTENANCE' | 'RETIRED';
+    reason: string;
+    notes?: string;
+    repairCost?: number;
+  }) => Promise<InventoryItem>;
+  getInventoryMaster: () => Promise<InventoryMasterRow[]>;
+  upsertEventInventoryRequirement: (bookingId: string, data: { itemTypeId: string; requiredQty: number; notes?: string }) => Promise<EventInventoryLine>;
+  reserveEventInventory: (lineId: string, data: { quantity: number; serialNumbers?: string[]; location?: string }) => Promise<EventInventoryLine>;
+  issueEventInventory: (lineId: string, data: { quantity: number; serialNumbers?: string[]; issuedTo: string; notes?: string }) => Promise<EventInventoryLine>;
+  returnEventInventory: (lineId: string, data: {
+    returnedQty: number;
+    serialNumbers?: string[];
+    toLocation: string;
+    returnedBy: string;
+    missingQty?: number;
+    damagedQty?: number;
+    missingSerials?: string[];
+    damagedSerials?: string[];
+    notes?: string;
+  }) => Promise<EventInventoryLine>;
   searchInventoryBySerial: (serial: string) => Promise<{ item: InventoryItem; transactions: InventoryTransaction[] }>;
   createKitchenPurchase: (data: Omit<KitchenPurchase, 'id' | 'totalCost' | 'createdBy' | 'createdAt'>) => Promise<KitchenPurchase>;
   recordKitchenUsage: (data: {
@@ -263,6 +315,10 @@ const defaultState: AppState = {
   venues,
   inventoryItems: initialInventoryItems,
   inventoryTransactions: initialInventoryTransactions,
+  inventoryItemTypes: [],
+  inventoryStockBalances: [],
+  inventoryQuantityMovements: [],
+  eventInventoryLines: [],
   kitchenPurchases: initialKitchenPurchases,
   kitchenStock: initialKitchenStock,
   kitchenStockUsage: [],
@@ -285,6 +341,10 @@ const emptyApiState: AppState = {
   venues: [],
   inventoryItems: [],
   inventoryTransactions: [],
+  inventoryItemTypes: [],
+  inventoryStockBalances: [],
+  inventoryQuantityMovements: [],
+  eventInventoryLines: [],
   kitchenPurchases: [],
   kitchenStock: [],
   kitchenStockUsage: [],
@@ -365,6 +425,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         venues: data.venues.length > 0 ? data.venues : prev.venues,
         inventoryItems: data.inventoryItems ?? [],
         inventoryTransactions: data.inventoryTransactions ?? [],
+        inventoryItemTypes: data.inventoryItemTypes ?? [],
+        inventoryStockBalances: data.inventoryStockBalances ?? [],
+        inventoryQuantityMovements: data.inventoryQuantityMovements ?? [],
+        eventInventoryLines: data.eventInventoryLines ?? [],
         kitchenPurchases: data.kitchenPurchases ?? [],
         kitchenStock: data.kitchenStock ?? [],
         kitchenStockUsage: data.kitchenStockUsage ?? [],
@@ -1676,7 +1740,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const item: InventoryItem = {
         ...data,
         id,
-        status: 'IN',
+        status: 'AVAILABLE',
         createdBy,
         createdAt: ts,
         updatedAt: ts,
@@ -1735,6 +1799,41 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [state.currentUser.name, clearActionError, refreshFromApi, createInventoryItemFn],
   );
 
+  const createInventoryItemsByQuantityFn = useCallback(
+    async (data: {
+      itemName: string;
+      category: string;
+      location: string;
+      quantity: number;
+      purchaseDate?: string;
+      purchaseReference?: string;
+      supplier?: string;
+      notes?: string;
+    }) => {
+      if (USE_API) {
+        clearActionError();
+        const result = await api.createInventoryItemsByQuantity(data);
+        await refreshFromApi();
+        return { created: result.created, serialNumbers: result.serialNumbers, errors: result.errors };
+      }
+      const existingSerials = new Set(state.inventoryItems.map((i) => i.serialNumber));
+      const serialNumbers = previewQuantitySerials(data.itemName, data.quantity, existingSerials);
+      const rows = serialNumbers.map((serialNumber) => ({
+        itemName: data.itemName,
+        category: data.category,
+        serialNumber,
+        location: data.location,
+        purchaseDate: data.purchaseDate,
+        purchaseReference: data.purchaseReference,
+        supplier: data.supplier,
+        notes: data.notes,
+      }));
+      const result = await bulkCreateInventoryItemsFn(rows);
+      return { created: result.created, serialNumbers, errors: result.errors };
+    },
+    [state.inventoryItems, clearActionError, refreshFromApi, bulkCreateInventoryItemsFn],
+  );
+
   const updateInventoryItemMetaFn = useCallback(
     async (
       id: string,
@@ -1780,7 +1879,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
       const existing = state.inventoryItems.find((i) => i.serialNumber === data.serialNumber.trim());
       if (!existing) throw new Error('Item not found');
-      if (existing.status !== 'IN') throw new Error('Item is not available (IN)');
+      if (existing.status !== 'AVAILABLE') throw new Error('Item is not available.');
       if (data.fromLocation.trim() !== existing.location) {
         throw new Error(`From location must match item location (${existing.location}).`);
       }
@@ -1839,10 +1938,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (!existing) throw new Error('Item not found');
       if (existing.status !== 'OUT') throw new Error('Item is not checked out (OUT)');
       const ts = new Date().toISOString();
+      const condition = data.condition.trim().toLowerCase();
+      const newStatus =
+        condition === 'damaged' || condition === 'needs repair' ? 'DAMAGED' : 'AVAILABLE';
       const item: InventoryItem = {
         ...existing,
-        status: 'IN',
+        status: newStatus,
         location: data.toLocation,
+        lastKnownLocation: data.toLocation,
         currentHolder: undefined,
         updatedAt: ts,
       };
@@ -1872,6 +1975,128 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [state.currentUser.name, state.inventoryItems, clearActionError, refreshFromApi],
   );
 
+  const performTransferFn = useCallback(
+    async (data: {
+      serialNumbers: string[];
+      fromLocation: string;
+      toLocation: string;
+      reason: string;
+      notes?: string;
+    }) => {
+      const createdBy = state.currentUser.name;
+      if (USE_API) {
+        clearActionError();
+        const result = await api.transferInventory(data);
+        await refreshFromApi();
+        return { transferred: result.transferred };
+      }
+      const ts = new Date().toISOString();
+      const serials = [...new Set(data.serialNumbers.map((s) => s.trim()).filter(Boolean))];
+      let transferred = 0;
+      for (const serial of serials) {
+        const existing = state.inventoryItems.find((i) => i.serialNumber === serial);
+        if (!existing || existing.status !== 'AVAILABLE' || existing.location !== data.fromLocation) {
+          throw new Error(`Cannot transfer ${serial}.`);
+        }
+        const item: InventoryItem = {
+          ...existing,
+          location: data.toLocation,
+          lastKnownLocation: data.fromLocation,
+          updatedAt: ts,
+        };
+        const tx: InventoryTransaction = {
+          id: `itx${Date.now()}${transferred}`,
+          inventoryItemId: existing.id,
+          serialNumber: existing.serialNumber,
+          action: 'TRANSFER',
+          transactionDate: ts,
+          fromLocation: data.fromLocation,
+          toLocation: data.toLocation,
+          person: createdBy,
+          reason: data.reason,
+          notes: data.notes,
+          createdBy,
+          createdAt: ts,
+        };
+        setState((prev) => ({
+          ...prev,
+          inventoryItems: upsertInventoryItem(prev.inventoryItems, item),
+          inventoryTransactions: appendInventoryTransaction(prev.inventoryTransactions, tx),
+        }));
+        transferred++;
+      }
+      return { transferred };
+    },
+    [state.currentUser.name, state.inventoryItems, clearActionError, refreshFromApi],
+  );
+
+  const updateInventoryItemStatusFn = useCallback(
+    async (data: {
+      serialNumber: string;
+      status: 'MISSING' | 'DAMAGED' | 'AVAILABLE' | 'UNDER_MAINTENANCE' | 'RETIRED';
+      reason: string;
+      notes?: string;
+      repairCost?: number;
+    }) => {
+      const updatedBy = state.currentUser.name;
+      if (USE_API) {
+        clearActionError();
+        const item = await api.updateInventoryStatus(data);
+        await refreshFromApi();
+        return item;
+      }
+      const existing = state.inventoryItems.find((i) => i.serialNumber === data.serialNumber.trim());
+      if (!existing) throw new Error('Item not found');
+      const ts = new Date().toISOString();
+      const actionMap = {
+        MISSING: 'MARK_MISSING' as const,
+        DAMAGED: 'MARK_DAMAGED' as const,
+        AVAILABLE: 'RESTORE' as const,
+        UNDER_MAINTENANCE: 'MAINTENANCE_START' as const,
+        RETIRED: 'RETIRE' as const,
+      };
+      const locationUpdate =
+        data.status === 'MISSING'
+          ? 'Missing'
+          : data.status === 'DAMAGED'
+            ? 'Damaged'
+            : data.status === 'UNDER_MAINTENANCE'
+              ? 'Maintenance/Damaged Area'
+              : data.status === 'RETIRED'
+                ? 'Retired'
+                : existing.lastKnownLocation ?? existing.location;
+      const item: InventoryItem = {
+        ...existing,
+        status: data.status,
+        location: locationUpdate,
+        lastKnownLocation: data.status === 'AVAILABLE' ? locationUpdate : existing.location,
+        currentHolder: undefined,
+        updatedAt: ts,
+      };
+      const tx: InventoryTransaction = {
+        id: `itx${Date.now()}`,
+        inventoryItemId: existing.id,
+        serialNumber: existing.serialNumber,
+        action: actionMap[data.status],
+        transactionDate: ts,
+        fromLocation: existing.location,
+        toLocation: locationUpdate,
+        person: updatedBy,
+        reason: data.reason,
+        notes: data.notes,
+        createdBy: updatedBy,
+        createdAt: ts,
+      };
+      setState((prev) => ({
+        ...prev,
+        inventoryItems: upsertInventoryItem(prev.inventoryItems, item),
+        inventoryTransactions: appendInventoryTransaction(prev.inventoryTransactions, tx),
+      }));
+      return item;
+    },
+    [state.currentUser.name, state.inventoryItems, clearActionError, refreshFromApi],
+  );
+
   const searchInventoryBySerialFn = useCallback(
     async (serial: string) => {
       if (USE_API) {
@@ -1885,6 +2110,95 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return { item, transactions };
     },
     [state.inventoryItems, state.inventoryTransactions],
+  );
+
+  const getInventoryMasterFn = useCallback(async () => {
+    if (USE_API) return api.getInventoryMaster();
+    const normalized = state.inventoryItems.map((i) => ({ ...i, status: normalizeInventoryStatus(i.status) }));
+    const summaries = buildInventorySummaries(normalized);
+    return summaries.map((s) => ({
+      itemTypeId: `legacy:${s.itemName}|${s.category}`,
+      itemName: s.itemName,
+      category: s.category,
+      unit: 'unit',
+      serialTracking: true,
+      total: s.total,
+      available: s.available,
+      reserved: s.reserved,
+      missing: s.missing,
+      damaged: s.damaged,
+      issued: s.out,
+      underMaintenance: s.underMaintenance,
+      inTransit: 0,
+      retired: 0,
+      locations: Object.keys(s.byLocation),
+      lastUpdated: new Date().toISOString(),
+    }));
+  }, [state.inventoryItems]);
+
+  const upsertEventInventoryRequirementFn = useCallback(
+    async (bookingId: string, data: { itemTypeId: string; requiredQty: number; notes?: string }) => {
+      if (USE_API) {
+        clearActionError();
+        const line = await api.upsertEventInventoryRequirement(bookingId, data);
+        await refreshFromApi();
+        return line;
+      }
+      throw new Error('Event inventory requires API mode.');
+    },
+    [clearActionError, refreshFromApi],
+  );
+
+  const reserveEventInventoryFn = useCallback(
+    async (lineId: string, data: { quantity: number; serialNumbers?: string[]; location?: string }) => {
+      if (USE_API) {
+        clearActionError();
+        const line = await api.reserveEventInventory(lineId, data);
+        await refreshFromApi();
+        return line;
+      }
+      throw new Error('Event inventory requires API mode.');
+    },
+    [clearActionError, refreshFromApi],
+  );
+
+  const issueEventInventoryFn = useCallback(
+    async (lineId: string, data: { quantity: number; serialNumbers?: string[]; issuedTo: string; notes?: string }) => {
+      if (USE_API) {
+        clearActionError();
+        const line = await api.issueEventInventory(lineId, data);
+        await refreshFromApi();
+        return line;
+      }
+      throw new Error('Event inventory requires API mode.');
+    },
+    [clearActionError, refreshFromApi],
+  );
+
+  const returnEventInventoryFn = useCallback(
+    async (
+      lineId: string,
+      data: {
+        returnedQty: number;
+        serialNumbers?: string[];
+        toLocation: string;
+        returnedBy: string;
+        missingQty?: number;
+        damagedQty?: number;
+        missingSerials?: string[];
+        damagedSerials?: string[];
+        notes?: string;
+      },
+    ) => {
+      if (USE_API) {
+        clearActionError();
+        const line = await api.returnEventInventory(lineId, data);
+        await refreshFromApi();
+        return line;
+      }
+      throw new Error('Event inventory requires API mode.');
+    },
+    [clearActionError, refreshFromApi],
   );
 
   const createKitchenPurchaseFn = useCallback(
@@ -2035,10 +2349,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     getEventExpensesForBooking,
     createInventoryItem: createInventoryItemFn,
     bulkCreateInventoryItems: bulkCreateInventoryItemsFn,
+    createInventoryItemsByQuantity: createInventoryItemsByQuantityFn,
     updateInventoryItemMeta: updateInventoryItemMetaFn,
     performStockOut: performStockOutFn,
     performStockIn: performStockInFn,
+    performTransfer: performTransferFn,
+    updateInventoryItemStatus: updateInventoryItemStatusFn,
     searchInventoryBySerial: searchInventoryBySerialFn,
+    getInventoryMaster: getInventoryMasterFn,
+    upsertEventInventoryRequirement: upsertEventInventoryRequirementFn,
+    reserveEventInventory: reserveEventInventoryFn,
+    issueEventInventory: issueEventInventoryFn,
+    returnEventInventory: returnEventInventoryFn,
     createKitchenPurchase: createKitchenPurchaseFn,
     recordKitchenUsage: recordKitchenUsageFn,
     updateKitchenStockThreshold: updateKitchenStockThresholdFn,

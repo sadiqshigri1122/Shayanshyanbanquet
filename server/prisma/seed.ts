@@ -221,7 +221,7 @@ async function main() {
       category: 'Kitchen Equipment',
       serialNumber: 'SN-KIT-1005',
       location: 'Kitchen Store',
-      status: 'IN',
+      status: 'AVAILABLE',
       purchaseDate: '2026-02-01',
       supplier: 'Kitchen Pro',
       createdBy: 'Usman Ali',

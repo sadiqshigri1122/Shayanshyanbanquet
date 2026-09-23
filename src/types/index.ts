@@ -260,17 +260,130 @@ export interface SystemSettings {
 }
 
 // --- Inventory ---
-export type InventoryStatus = 'IN' | 'OUT';
-export type InventoryAction = 'IN' | 'OUT';
+export type InventoryStatus =
+  | 'AVAILABLE'
+  | 'RESERVED'
+  | 'MISSING'
+  | 'DAMAGED'
+  | 'OUT'
+  | 'IN_TRANSIT'
+  | 'UNDER_MAINTENANCE'
+  | 'RETIRED';
+
+export type InventoryAction =
+  | 'IN'
+  | 'OUT'
+  | 'TRANSFER'
+  | 'MARK_MISSING'
+  | 'MARK_DAMAGED'
+  | 'RESTORE'
+  | 'MAINTENANCE_START'
+  | 'RETIRE'
+  | 'RESERVE'
+  | 'ISSUE'
+  | 'RETURN'
+  | 'ADJUSTMENT';
+
+export type EventInventoryLineStatus = 'REQUIRED' | 'RESERVED' | 'ISSUED' | 'RETURNED' | 'RECONCILED';
+
+export interface InventoryItemType {
+  id: string;
+  name: string;
+  category: string;
+  unit: string;
+  serialTracking: boolean;
+  defaultLocation?: string;
+  notes?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InventoryStockBalance {
+  id: string;
+  itemTypeId: string;
+  location: string;
+  quantity: number;
+  updatedAt: string;
+}
+
+export interface InventoryQuantityMovement {
+  id: string;
+  itemTypeId: string;
+  action: string;
+  quantity: number;
+  fromLocation?: string;
+  toLocation?: string;
+  bookingId?: string;
+  reason: string;
+  reference?: string;
+  notes?: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface EventInventoryAsset {
+  id: string;
+  eventLineId: string;
+  inventoryItemId: string;
+  serialNumber?: string;
+  status: string;
+  issuedAt?: string;
+  returnedAt?: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface EventInventoryLine {
+  id: string;
+  bookingId: string;
+  itemTypeId: string;
+  itemName: string;
+  requiredQty: number;
+  reservedQty: number;
+  issuedQty: number;
+  returnedQty: number;
+  missingQty: number;
+  damagedQty: number;
+  status: EventInventoryLineStatus;
+  notes?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  allocations?: EventInventoryAsset[];
+}
+
+export interface InventoryMasterRow {
+  itemTypeId: string;
+  itemName: string;
+  category: string;
+  unit: string;
+  serialTracking: boolean;
+  total: number;
+  available: number;
+  reserved: number;
+  issued: number;
+  missing: number;
+  damaged: number;
+  underMaintenance: number;
+  inTransit: number;
+  retired: number;
+  locations: string[];
+  lastUpdated: string;
+}
 
 export interface InventoryItem {
   id: string;
+  itemTypeId?: string;
   itemName: string;
   category: string;
   serialNumber: string;
   location: string;
   status: InventoryStatus;
+  condition?: string;
+  lastKnownLocation?: string;
   currentHolder?: string;
+  activeBookingId?: string;
   purchaseDate?: string;
   purchaseReference?: string;
   supplier?: string;
@@ -291,6 +404,7 @@ export interface InventoryTransaction {
   person: string;
   reason: string;
   bookingId?: string;
+  reference?: string;
   condition?: string;
   notes?: string;
   createdBy: string;
@@ -361,13 +475,14 @@ export const KITCHEN_CATEGORIES = [
   'Other',
 ] as const;
 
-/** Storage / shared areas (not tied to a single hall) */
 export const INVENTORY_STORAGE_LOCATIONS = [
   'Kitchen Store',
   'Kitchen',
   'Store Room',
   'Office',
   'Receiving',
+  'Main Storage',
+  'Maintenance/Damaged Area',
 ] as const;
 
 /** All hall sections (A, B, C sub-venues) for per-hall asset tracking */

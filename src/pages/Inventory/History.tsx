@@ -6,7 +6,7 @@ import { formatInventoryDateTime } from '../../utils/inventoryUtils';
 
 export default function InventoryHistory() {
   const { inventoryTransactions, inventoryItems, bookings } = useApp();
-  const [actionFilter, setActionFilter] = useState<'all' | 'IN' | 'OUT'>('all');
+  const [actionFilter, setActionFilter] = useState<'all' | 'IN' | 'OUT' | 'TRANSFER' | 'MARK_MISSING' | 'MARK_DAMAGED' | 'RESTORE'>('all');
   const [serialSearch, setSerialSearch] = useState('');
 
   const rows = useMemo(() => {
@@ -36,8 +36,12 @@ export default function InventoryHistory() {
         />
         <select className={`${modalSelectClass} sm:w-36`} value={actionFilter} onChange={(e) => setActionFilter(e.target.value as typeof actionFilter)}>
           <option value="all">All actions</option>
-          <option value="IN">IN</option>
-          <option value="OUT">OUT</option>
+          <option value="IN">Received / Check In</option>
+          <option value="OUT">Checked Out</option>
+          <option value="TRANSFER">Transfer</option>
+          <option value="MARK_MISSING">Marked Missing</option>
+          <option value="MARK_DAMAGED">Marked Damaged</option>
+          <option value="RESTORE">Restored</option>
         </select>
       </div>
 

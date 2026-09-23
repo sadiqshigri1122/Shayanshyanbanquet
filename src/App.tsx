@@ -35,7 +35,11 @@ import AddItem from './pages/Inventory/AddItem';
 import BulkAddItems from './pages/Inventory/BulkAddItems';
 import StockOut from './pages/Inventory/StockOut';
 import StockIn from './pages/Inventory/StockIn';
+import TransferItems from './pages/Inventory/TransferItems';
 import InventoryHistory from './pages/Inventory/History';
+import InventoryMaster from './pages/Inventory/Master';
+import LocationInventory from './pages/Inventory/LocationInventory';
+import EventInventoryPage from './pages/Inventory/EventInventory';
 import KitchenPurchases from './pages/Inventory/KitchenPurchases';
 import KitchenPurchaseHistory from './pages/Inventory/KitchenPurchaseHistory';
 import KitchenStockPage from './pages/Inventory/KitchenStock';
@@ -78,11 +82,15 @@ function App() {
           <Route element={<ProtectedRoute dashboard="inventory" />}>
             <Route path="/inventory" element={<DashboardLayout role="inventory" />}>
               <Route index element={<InventoryDashboard />} />
+              <Route path="master" element={<InventoryMaster />} />
+              <Route path="locations" element={<LocationInventory />} />
+              <Route path="event/:bookingId" element={<EventInventoryPage />} />
               <Route path="items" element={<AllItems />} />
               <Route path="add-item" element={<AddItem />} />
               <Route path="bulk-add" element={<BulkAddItems />} />
               <Route path="stock-out" element={<StockOut />} />
               <Route path="stock-in" element={<StockIn />} />
+              <Route path="transfer" element={<TransferItems />} />
               <Route path="history" element={<InventoryHistory />} />
               <Route path="kitchen/purchases" element={<KitchenPurchases />} />
               <Route path="kitchen/history" element={<KitchenPurchaseHistory />} />
@@ -101,6 +109,7 @@ function App() {
               <Route path="kitchen-reports" element={<KitchenReports />} />
               <Route path="bookings" element={<Bookings />} />
               <Route path="bookings/:id" element={<BookingDetail />} />
+              <Route path="inventory/event/:bookingId" element={<EventInventoryPage />} />
               <Route path="calendar" element={<Calendar />} />
               <Route path="customers" element={<Customers />} />
               <Route path="payments" element={<Payments />} />

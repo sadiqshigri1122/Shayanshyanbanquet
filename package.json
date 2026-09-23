@@ -13,6 +13,8 @@
     "test:watch": "vitest",
     "lint": "oxlint",
     "preview": "vite preview",
+    "db:push": "npm run db:push --prefix server",
+    "db:migrate": "npm run db:migrate --prefix server",
     "db:setup": "npm install --prefix server && npm run db:generate --prefix server && npm run db:push --prefix server && npm run db:seed --prefix server"
   },
   "dependencies": {

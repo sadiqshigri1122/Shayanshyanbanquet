@@ -28,7 +28,7 @@ export default function StockOut() {
     [inventoryItems, form.serialNumber],
   );
 
-  const availableItems = inventoryItems.filter((i) => i.status === 'IN');
+  const availableItems = inventoryItems.filter((i) => i.status === 'AVAILABLE');
   const activeBookings = bookings.filter((b) => !['cancelled', 'rejected'].includes(b.status));
 
   const onSerialChange = (serial: string) => {
@@ -94,7 +94,7 @@ export default function StockOut() {
 
           <ModalField label="Serial Number *">
             <select className={modalSelectClass} value={form.serialNumber} onChange={(e) => onSerialChange(e.target.value)} required>
-              <option value="">Select item (IN only)</option>
+              <option value="">Select available item</option>
               {availableItems.map((i) => (
                 <option key={i.id} value={i.serialNumber}>{i.serialNumber} — {i.itemName}</option>
               ))}

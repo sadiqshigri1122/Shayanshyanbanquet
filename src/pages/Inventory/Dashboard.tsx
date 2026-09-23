@@ -2,18 +2,22 @@ import { Link } from 'react-router-dom';
 import { Package, ArrowDownCircle, ArrowUpCircle, ShoppingCart, AlertTriangle } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useDashboard } from '../../context/DashboardContext';
-import { formatInventoryDateTime, getOverdueOutItems, INVENTORY_OVERDUE_DAYS } from '../../utils/inventoryUtils';
+import { buildInventorySummaries, formatInventoryDateTime, getOverdueOutItems, INVENTORY_OVERDUE_DAYS, normalizeInventoryStatus } from '../../utils/inventoryUtils';
 import { formatCurrency } from '../../utils/bookingUtils';
-import { isLowStock } from '../../utils/inventoryUtils';
 import InventoryStatusBadge from '../../components/InventoryStatusBadge';
 
 export default function InventoryDashboard() {
-  const { inventoryItems, inventoryTransactions, kitchenPurchases, kitchenStock } = useApp();
+  const { inventoryItems, inventoryTransactions, kitchenPurchases } = useApp();
   const { path } = useDashboard();
 
-  const itemsIn = inventoryItems.filter((i) => i.status === 'IN').length;
-  const itemsOut = inventoryItems.filter((i) => i.status === 'OUT').length;
-  const lowStock = kitchenStock.filter((s) => isLowStock(s.currentQuantity, s.minThreshold));
+  const normalizedItems = inventoryItems.map((i) => ({ ...i, status: normalizeInventoryStatus(i.status) }));
+  const summaries = buildInventorySummaries(normalizedItems);
+  const itemsAvailable = normalizedItems.filter((i) => i.status === 'AVAILABLE').length;
+  const itemsReserved = normalizedItems.filter((i) => i.status === 'RESERVED').length;
+  const itemsMissing = normalizedItems.filter((i) => i.status === 'MISSING').length;
+  const itemsDamaged = normalizedItems.filter((i) => i.status === 'DAMAGED').length;
+  const itemsOut = normalizedItems.filter((i) => i.status === 'OUT').length;
+  const itemsMaintenance = normalizedItems.filter((i) => i.status === 'UNDER_MAINTENANCE').length;
   const monthStart = new Date().toISOString().slice(0, 7);
   const purchasesThisMonth = kitchenPurchases.filter((p) => p.purchaseDate.startsWith(monthStart));
 
@@ -23,7 +27,7 @@ export default function InventoryDashboard() {
   const recentPurchases = [...kitchenPurchases]
     .sort((a, b) => b.purchaseDate.localeCompare(a.purchaseDate))
     .slice(0, 5);
-  const overdueItems = getOverdueOutItems(inventoryItems, inventoryTransactions);
+  const overdueItems = getOverdueOutItems(normalizedItems, inventoryTransactions);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -44,12 +48,15 @@ export default function InventoryDashboard() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
         {[
-          { label: 'Inventory Items', value: inventoryItems.length, icon: Package, link: path('/items') },
-          { label: 'Items IN', value: itemsIn, icon: ArrowDownCircle },
-          { label: 'Items OUT', value: itemsOut, icon: ArrowUpCircle },
-          { label: 'Low Stock', value: lowStock.length, icon: AlertTriangle, warn: lowStock.length > 0 },
+          { label: 'Total Items', value: inventoryItems.length, icon: Package, link: path('/master') },
+          { label: 'Available', value: itemsAvailable, icon: ArrowDownCircle },
+          { label: 'Reserved', value: itemsReserved, icon: Package },
+          { label: 'Issued', value: itemsOut, icon: ArrowUpCircle },
+          { label: 'Missing', value: itemsMissing, icon: AlertTriangle, warn: itemsMissing > 0 },
+          { label: 'Damaged', value: itemsDamaged, icon: AlertTriangle, warn: itemsDamaged > 0 },
+          { label: 'Maintenance', value: itemsMaintenance, icon: AlertTriangle },
         ].map((card) => {
           const Icon = card.icon;
           const inner = (
@@ -72,6 +79,25 @@ export default function InventoryDashboard() {
           );
         })}
       </div>
+
+      {summaries.length > 0 && (
+        <div className="card">
+          <h2 className="font-semibold text-primary mb-3">Inventory Summary</h2>
+          <div className="space-y-3">
+            {summaries.slice(0, 5).map((s) => (
+              <div key={s.itemName} className="text-sm border-b border-surface-alt pb-2 last:border-0">
+                <p className="font-semibold">{s.itemName} — Total: {s.total}</p>
+                <p className="text-muted">
+                  Available: {s.available} · Missing: {s.missing} · Damaged: {s.damaged}
+                  {Object.keys(s.byLocation).length > 0 && (
+                    <> · {Object.entries(s.byLocation).map(([loc, n]) => `${loc}: ${n}`).join(', ')}</>
+                  )}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-2 gap-6">
         <div className="card">

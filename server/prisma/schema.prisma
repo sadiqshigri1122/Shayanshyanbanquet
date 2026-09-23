@@ -87,6 +87,7 @@ model Booking {
   payments            PaymentRecord[]
   receipts            ReceiptRecord[]
   eventExpenses       EventExpenseRecord[]
+  eventInventoryLines EventInventoryLine[]
 }
 
 model BookingLineItem {
@@ -221,14 +222,39 @@ model AuthSession {
   @@index([expiresAt])
 }
 
+model InventoryItemType {
+  id              String                     @id
+  name            String
+  category        String
+  unit            String                     @default("unit")
+  serialTracking  Boolean                    @default(true)
+  defaultLocation String?
+  notes           String?
+  createdBy       String
+  createdAt       String
+  updatedAt       String
+  assets          InventoryItem[]
+  stockBalances   InventoryStockBalance[]
+  quantityMoves   InventoryQuantityMovement[]
+  eventLines      EventInventoryLine[]
+
+  @@unique([name, category])
+  @@index([category])
+}
+
 model InventoryItem {
   id                String                 @id
+  itemTypeId        String?
+  itemType          InventoryItemType?     @relation(fields: [itemTypeId], references: [id], onDelete: SetNull)
   itemName          String
   category          String
   serialNumber      String                 @unique
   location          String
   status            String
+  condition         String                 @default("Good")
+  lastKnownLocation String?
   currentHolder     String?
+  activeBookingId   String?
   purchaseDate      String?
   purchaseReference String?
   supplier          String?
@@ -237,11 +263,14 @@ model InventoryItem {
   createdAt         String
   updatedAt         String
   transactions      InventoryTransaction[]
+  eventAllocations  EventInventoryAsset[]
 
   @@index([serialNumber])
   @@index([status])
   @@index([category])
   @@index([location])
+  @@index([itemTypeId])
+  @@index([activeBookingId])
 }
 
 model InventoryTransaction {
@@ -256,6 +285,7 @@ model InventoryTransaction {
   person          String
   reason          String
   bookingId       String?
+  reference       String?
   condition       String?
   notes           String?
   createdBy       String
@@ -263,9 +293,85 @@ model InventoryTransaction {
 
   @@index([serialNumber])
   @@index([inventoryItemId])
+  @@index([bookingId])
   @@index([createdAt])
   @@index([createdBy])
   @@index([action])
+}
+
+model InventoryStockBalance {
+  id         String            @id
+  itemTypeId String
+  itemType   InventoryItemType @relation(fields: [itemTypeId], references: [id], onDelete: Cascade)
+  location   String
+  quantity   Int               @default(0)
+  updatedAt  String
+
+  @@unique([itemTypeId, location])
+  @@index([location])
+}
+
+model InventoryQuantityMovement {
+  id           String            @id
+  itemTypeId   String
+  itemType     InventoryItemType @relation(fields: [itemTypeId], references: [id], onDelete: Cascade)
+  action       String
+  quantity     Int
+  fromLocation String?
+  toLocation   String?
+  bookingId    String?
+  reason       String
+  reference    String?
+  notes        String?
+  createdBy    String
+  createdAt    String
+
+  @@index([itemTypeId])
+  @@index([bookingId])
+  @@index([createdAt])
+  @@index([action])
+}
+
+model EventInventoryLine {
+  id           String                @id
+  bookingId    String
+  booking      Booking               @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  itemTypeId   String
+  itemType     InventoryItemType     @relation(fields: [itemTypeId], references: [id], onDelete: Restrict)
+  itemName     String
+  requiredQty  Int
+  reservedQty  Int                   @default(0)
+  issuedQty    Int                   @default(0)
+  returnedQty  Int                   @default(0)
+  missingQty   Int                   @default(0)
+  damagedQty   Int                   @default(0)
+  status       String                @default("REQUIRED")
+  notes        String?
+  createdBy    String
+  createdAt    String
+  updatedAt    String
+  allocations  EventInventoryAsset[]
+
+  @@index([bookingId])
+  @@index([itemTypeId])
+  @@index([status])
+}
+
+model EventInventoryAsset {
+  id              String             @id
+  eventLineId     String
+  eventLine       EventInventoryLine @relation(fields: [eventLineId], references: [id], onDelete: Cascade)
+  inventoryItemId String
+  inventoryItem   InventoryItem      @relation(fields: [inventoryItemId], references: [id], onDelete: Restrict)
+  status          String
+  issuedAt        String?
+  returnedAt      String?
+  notes           String?
+  createdAt       String
+
+  @@unique([eventLineId, inventoryItemId])
+  @@index([inventoryItemId])
+  @@index([status])
 }
 
 model KitchenPurchase {

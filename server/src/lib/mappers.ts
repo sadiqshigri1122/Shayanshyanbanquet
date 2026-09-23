@@ -5,8 +5,13 @@ import type {
   BookingLineItem,
   Customer,
   EventExpenseRecord,
+  EventInventoryAsset,
+  EventInventoryLine,
   ExpenseRecord,
   InventoryItem,
+  InventoryItemType,
+  InventoryQuantityMovement,
+  InventoryStockBalance,
   InventoryTransaction,
   KitchenPurchase,
   KitchenStock,
@@ -18,6 +23,7 @@ import type {
   User,
   Venue,
 } from '@prisma/client';
+import { normalizeAssetStatus } from './inventoryConfig.js';
 
 export interface BookingServiceDto {
   serviceId: string;
@@ -88,6 +94,10 @@ export interface AppStateDto {
   venues: ReturnType<typeof mapVenue>[];
   inventoryItems: ReturnType<typeof mapInventoryItem>[];
   inventoryTransactions: ReturnType<typeof mapInventoryTransaction>[];
+  inventoryItemTypes: ReturnType<typeof mapInventoryItemType>[];
+  inventoryStockBalances: ReturnType<typeof mapInventoryStockBalance>[];
+  inventoryQuantityMovements: ReturnType<typeof mapInventoryQuantityMovement>[];
+  eventInventoryLines: ReturnType<typeof mapEventInventoryLine>[];
   kitchenPurchases: ReturnType<typeof mapKitchenPurchase>[];
   kitchenStock: ReturnType<typeof mapKitchenStock>[];
   kitchenStockUsage: ReturnType<typeof mapKitchenStockUsage>[];
@@ -297,15 +307,102 @@ export function mapSettings(s: SystemSettingsRecord) {
   };
 }
 
+function normalizeInventoryStatus(status: string): 'AVAILABLE' | 'RESERVED' | 'MISSING' | 'DAMAGED' | 'OUT' | 'IN_TRANSIT' | 'UNDER_MAINTENANCE' | 'RETIRED' {
+  return normalizeAssetStatus(status);
+}
+
+export function mapInventoryItemType(t: InventoryItemType) {
+  return {
+    id: t.id,
+    name: t.name,
+    category: t.category,
+    unit: t.unit,
+    serialTracking: t.serialTracking,
+    defaultLocation: t.defaultLocation ?? undefined,
+    notes: t.notes ?? undefined,
+    createdBy: t.createdBy,
+    createdAt: t.createdAt,
+    updatedAt: t.updatedAt,
+  };
+}
+
+export function mapInventoryStockBalance(b: InventoryStockBalance) {
+  return {
+    id: b.id,
+    itemTypeId: b.itemTypeId,
+    location: b.location,
+    quantity: b.quantity,
+    updatedAt: b.updatedAt,
+  };
+}
+
+export function mapInventoryQuantityMovement(m: InventoryQuantityMovement) {
+  return {
+    id: m.id,
+    itemTypeId: m.itemTypeId,
+    action: m.action,
+    quantity: m.quantity,
+    fromLocation: m.fromLocation ?? undefined,
+    toLocation: m.toLocation ?? undefined,
+    bookingId: m.bookingId ?? undefined,
+    reason: m.reason,
+    reference: m.reference ?? undefined,
+    notes: m.notes ?? undefined,
+    createdBy: m.createdBy,
+    createdAt: m.createdAt,
+  };
+}
+
+export function mapEventInventoryAsset(a: EventInventoryAsset & { inventoryItem?: InventoryItem }) {
+  return {
+    id: a.id,
+    eventLineId: a.eventLineId,
+    inventoryItemId: a.inventoryItemId,
+    serialNumber: a.inventoryItem?.serialNumber,
+    status: a.status,
+    issuedAt: a.issuedAt ?? undefined,
+    returnedAt: a.returnedAt ?? undefined,
+    notes: a.notes ?? undefined,
+    createdAt: a.createdAt,
+  };
+}
+
+export function mapEventInventoryLine(
+  line: EventInventoryLine & { allocations?: (EventInventoryAsset & { inventoryItem?: InventoryItem })[] },
+) {
+  return {
+    id: line.id,
+    bookingId: line.bookingId,
+    itemTypeId: line.itemTypeId,
+    itemName: line.itemName,
+    requiredQty: line.requiredQty,
+    reservedQty: line.reservedQty,
+    issuedQty: line.issuedQty,
+    returnedQty: line.returnedQty,
+    missingQty: line.missingQty,
+    damagedQty: line.damagedQty,
+    status: line.status,
+    notes: line.notes ?? undefined,
+    createdBy: line.createdBy,
+    createdAt: line.createdAt,
+    updatedAt: line.updatedAt,
+    allocations: line.allocations?.map(mapEventInventoryAsset),
+  };
+}
+
 export function mapInventoryItem(i: InventoryItem) {
   return {
     id: i.id,
+    itemTypeId: i.itemTypeId ?? undefined,
     itemName: i.itemName,
     category: i.category,
     serialNumber: i.serialNumber,
     location: i.location,
-    status: i.status as 'IN' | 'OUT',
+    status: normalizeInventoryStatus(i.status),
+    condition: i.condition,
+    lastKnownLocation: i.lastKnownLocation ?? undefined,
     currentHolder: i.currentHolder ?? undefined,
+    activeBookingId: i.activeBookingId ?? undefined,
     purchaseDate: i.purchaseDate ?? undefined,
     purchaseReference: i.purchaseReference ?? undefined,
     supplier: i.supplier ?? undefined,
@@ -321,13 +418,26 @@ export function mapInventoryTransaction(t: InventoryTransaction) {
     id: t.id,
     inventoryItemId: t.inventoryItemId,
     serialNumber: t.serialNumber,
-    action: t.action as 'IN' | 'OUT',
+    action: t.action as
+      | 'IN'
+      | 'OUT'
+      | 'TRANSFER'
+      | 'MARK_MISSING'
+      | 'MARK_DAMAGED'
+      | 'RESTORE'
+      | 'MAINTENANCE_START'
+      | 'RETIRE'
+      | 'RESERVE'
+      | 'ISSUE'
+      | 'RETURN'
+      | 'ADJUSTMENT',
     transactionDate: t.transactionDate,
     fromLocation: t.fromLocation,
     toLocation: t.toLocation,
     person: t.person,
     reason: t.reason,
     bookingId: t.bookingId ?? undefined,
+    reference: t.reference ?? undefined,
     condition: t.condition ?? undefined,
     notes: t.notes ?? undefined,
     createdBy: t.createdBy,

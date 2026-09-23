@@ -1,51 +1,60 @@
 import { useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import InventoryStatusBadge from '../../components/InventoryStatusBadge';
+import InventoryItemDetailModal from '../../components/InventoryItemDetailModal';
 import { modalInputClass } from '../../components/ModalField';
 import {
-  formatInventoryDate,
+  buildInventorySummaries,
   formatInventoryDateTime,
   formatTransactionLine,
   filterByDateRange,
   getDaysOut,
+  getMissingItemDetails,
   getOverdueOutItems,
   INVENTORY_OVERDUE_DAYS,
+  normalizeInventoryStatus,
 } from '../../utils/inventoryUtils';
 import { exportTableCsv } from '../../utils/inventoryUtils';
 
 type DateRange = 'today' | 'week' | 'month' | 'custom' | 'all';
+type StatusDrilldown = 'missing' | 'damaged' | null;
 
 export default function InventoryReports() {
-  const { inventoryItems, inventoryTransactions, searchInventoryBySerial } = useApp();
+  const {
+    inventoryItems,
+    inventoryTransactions,
+    searchInventoryBySerial,
+    updateInventoryItemStatus,
+  } = useApp();
   const [serialQuery, setSerialQuery] = useState('');
   const [searchResult, setSearchResult] = useState<Awaited<ReturnType<typeof searchInventoryBySerial>> | null>(null);
   const [searchError, setSearchError] = useState('');
   const [range, setRange] = useState<DateRange>('month');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
+  const [expandedItem, setExpandedItem] = useState<string | null>(null);
+  const [statusDrilldown, setStatusDrilldown] = useState<StatusDrilldown>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
 
-  const itemsIn = inventoryItems.filter((i) => i.status === 'IN').length;
-  const itemsOut = inventoryItems.filter((i) => i.status === 'OUT').length;
+  const normalizedItems = useMemo(
+    () => inventoryItems.map((i) => ({ ...i, status: normalizeInventoryStatus(i.status) })),
+    [inventoryItems],
+  );
 
-  const byCategory = useMemo(() => {
-    const map = new Map<string, number>();
-    inventoryItems.forEach((i) => map.set(i.category, (map.get(i.category) ?? 0) + 1));
-    return [...map.entries()].sort((a, b) => b[1] - a[1]);
-  }, [inventoryItems]);
+  const summaries = useMemo(() => buildInventorySummaries(normalizedItems), [normalizedItems]);
+  const missingDetails = useMemo(
+    () => getMissingItemDetails(normalizedItems, inventoryTransactions),
+    [normalizedItems, inventoryTransactions],
+  );
+  const damagedItems = useMemo(
+    () => normalizedItems.filter((i) => i.status === 'DAMAGED'),
+    [normalizedItems],
+  );
 
-  const byLocation = useMemo(() => {
-    const map = new Map<string, number>();
-    inventoryItems.forEach((i) => map.set(i.location, (map.get(i.location) ?? 0) + 1));
-    return [...map.entries()].sort((a, b) => b[1] - a[1]);
-  }, [inventoryItems]);
-
-  const byHolder = useMemo(() => {
-    const map = new Map<string, number>();
-    inventoryItems.filter((i) => i.status === 'OUT' && i.currentHolder).forEach((i) => {
-      map.set(i.currentHolder!, (map.get(i.currentHolder!) ?? 0) + 1);
-    });
-    return [...map.entries()].sort((a, b) => b[1] - a[1]);
-  }, [inventoryItems]);
+  const itemsAvailable = normalizedItems.filter((i) => i.status === 'AVAILABLE').length;
+  const itemsMissing = normalizedItems.filter((i) => i.status === 'MISSING').length;
+  const itemsDamaged = normalizedItems.filter((i) => i.status === 'DAMAGED').length;
+  const itemsOut = normalizedItems.filter((i) => i.status === 'OUT').length;
 
   const filteredTx = useMemo(() => {
     return inventoryTransactions.filter((tx) => {
@@ -63,18 +72,20 @@ export default function InventoryReports() {
   }, [filteredTx]);
 
   const overdueItems = useMemo(
-    () => getOverdueOutItems(inventoryItems, inventoryTransactions),
-    [inventoryItems, inventoryTransactions],
+    () => getOverdueOutItems(normalizedItems, inventoryTransactions),
+    [normalizedItems, inventoryTransactions],
   );
 
   const itemsCurrentlyOut = useMemo(
     () =>
-      inventoryItems
+      normalizedItems
         .filter((i) => i.status === 'OUT')
         .map((i) => ({ ...i, daysOut: getDaysOut(i, inventoryTransactions) }))
         .sort((a, b) => (b.daysOut ?? 0) - (a.daysOut ?? 0)),
-    [inventoryItems, inventoryTransactions],
+    [normalizedItems, inventoryTransactions],
   );
+
+  const detailItem = detailId ? normalizedItems.find((i) => i.id === detailId) : null;
 
   const handleSearch = async () => {
     setSearchError('');
@@ -82,7 +93,10 @@ export default function InventoryReports() {
     if (!serialQuery.trim()) return;
     try {
       const result = await searchInventoryBySerial(serialQuery.trim());
-      setSearchResult(result);
+      setSearchResult({
+        ...result,
+        item: { ...result.item, status: normalizeInventoryStatus(result.item.status) },
+      });
     } catch (err) {
       setSearchError(err instanceof Error ? err.message : 'Search failed');
     }
@@ -90,7 +104,7 @@ export default function InventoryReports() {
 
   const exportCsv = () => {
     const rows = filteredTx.map((tx) => {
-      const item = inventoryItems.find((i) => i.id === tx.inventoryItemId);
+      const item = normalizedItems.find((i) => i.id === tx.inventoryItemId);
       return {
         Date: formatInventoryDateTime(tx.transactionDate),
         Action: tx.action,
@@ -110,9 +124,135 @@ export default function InventoryReports() {
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-primary">Inventory Reports</h1>
-          <p className="text-sm text-muted">Track what exists, who has it, and what is overdue</p>
+          <p className="text-sm text-muted">Auto-calculated summaries by item type, location, and status</p>
         </div>
         <button type="button" className="btn-secondary !text-sm" onClick={exportCsv}>Export CSV</button>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        {[
+          { label: 'Total Items', value: normalizedItems.length },
+          { label: 'Available', value: itemsAvailable, onClick: undefined },
+          { label: 'Missing', value: itemsMissing, onClick: () => setStatusDrilldown('missing') },
+          { label: 'Damaged', value: itemsDamaged, onClick: () => setStatusDrilldown('damaged') },
+          { label: 'Checked Out', value: itemsOut },
+        ].map((k) => (
+          <button
+            key={k.label}
+            type="button"
+            className={`card !py-4 text-left ${k.onClick ? 'hover:ring-2 hover:ring-secondary/40 cursor-pointer' : ''}`}
+            onClick={k.onClick}
+            disabled={!k.onClick || k.value === 0}
+          >
+            <p className="text-xs text-muted">{k.label}</p>
+            <p className="text-2xl font-bold text-primary">{k.value}</p>
+          </button>
+        ))}
+      </div>
+
+      {statusDrilldown === 'missing' && missingDetails.length > 0 && (
+        <div className="card border-l-4 border-l-danger">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-semibold text-danger">Missing Items</h2>
+            <button type="button" className="text-xs text-muted" onClick={() => setStatusDrilldown(null)}>Close</button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[700px]">
+              <thead>
+                <tr className="border-b border-border text-left">
+                  <th className="py-2">Serial</th>
+                  <th className="py-2">Item</th>
+                  <th className="py-2">Last Known Location</th>
+                  <th className="py-2">Last Movement</th>
+                  <th className="py-2">Date/Time</th>
+                  <th className="py-2">Last Handled By</th>
+                </tr>
+              </thead>
+              <tbody>
+                {missingDetails.map(({ item, lastKnownLocation, lastMovement }) => (
+                  <tr
+                    key={item.id}
+                    className="border-b border-surface-alt hover:bg-surface-alt/50 cursor-pointer"
+                    onClick={() => setDetailId(item.id)}
+                  >
+                    <td className="py-2 font-mono text-xs">{item.serialNumber}</td>
+                    <td className="py-2">{item.itemName}</td>
+                    <td className="py-2">{lastKnownLocation}</td>
+                    <td className="py-2">
+                      {lastMovement ? `${lastMovement.from} → ${lastMovement.to}` : '—'}
+                    </td>
+                    <td className="py-2">{lastMovement ? formatInventoryDateTime(lastMovement.date) : '—'}</td>
+                    <td className="py-2">{lastMovement?.handledBy ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {statusDrilldown === 'damaged' && damagedItems.length > 0 && (
+        <div className="card border-l-4 border-l-warning">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-semibold text-warning">Damaged Items</h2>
+            <button type="button" className="text-xs text-muted" onClick={() => setStatusDrilldown(null)}>Close</button>
+          </div>
+          <ul className="text-sm space-y-2">
+            {damagedItems.map((i) => (
+              <li key={i.id}>
+                <button type="button" className="text-left hover:underline" onClick={() => setDetailId(i.id)}>
+                  {i.serialNumber} — {i.itemName}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="card">
+        <h2 className="font-semibold text-primary mb-4">Inventory by Item Type</h2>
+        {summaries.length === 0 ? (
+          <p className="text-sm text-muted">No inventory items yet.</p>
+        ) : (
+          <div className="space-y-4">
+            {summaries.map((s) => (
+              <div key={s.itemName} className="border border-border rounded-lg p-4">
+                <button
+                  type="button"
+                  className="w-full text-left"
+                  onClick={() => setExpandedItem(expandedItem === s.itemName ? null : s.itemName)}
+                >
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <h3 className="font-semibold text-primary">{s.itemName} — Total: {s.total}</h3>
+                    <span className="text-xs text-muted">{s.category}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-4 mt-2 text-sm">
+                    <span>Available: <strong>{s.available}</strong></span>
+                    <button type="button" className="hover:underline" onClick={(e) => { e.stopPropagation(); setStatusDrilldown('missing'); }}>
+                      Missing: <strong className={s.missing > 0 ? 'text-danger' : ''}>{s.missing}</strong>
+                    </button>
+                    <button type="button" className="hover:underline" onClick={(e) => { e.stopPropagation(); setStatusDrilldown('damaged'); }}>
+                      Damaged: <strong className={s.damaged > 0 ? 'text-warning' : ''}>{s.damaged}</strong>
+                    </button>
+                    <span>Checked Out: <strong>{s.out}</strong></span>
+                  </div>
+                </button>
+                {expandedItem === s.itemName && (
+                  <div className="mt-3 pt-3 border-t border-border text-sm">
+                    <p className="font-medium mb-2">Available items by location</p>
+                    <ul className="space-y-1">
+                      {Object.entries(s.byLocation).sort((a, b) => b[1] - a[1]).map(([loc, count]) => (
+                        <li key={loc}>{loc}: <strong>{count}</strong></li>
+                      ))}
+                      {s.missing > 0 && <li className="text-danger">Missing: <strong>{s.missing}</strong></li>}
+                      {s.damaged > 0 && <li className="text-warning">Damaged: <strong>{s.damaged}</strong></li>}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {overdueItems.length > 0 && (
@@ -120,7 +260,6 @@ export default function InventoryReports() {
           <h2 className="font-semibold text-warning mb-2">
             {overdueItems.length} item(s) overdue (OUT {INVENTORY_OVERDUE_DAYS}+ days)
           </h2>
-          <p className="text-sm text-muted mb-3">These may be lost or forgotten — follow up immediately.</p>
           <div className="overflow-x-auto">
             <table className="w-full text-sm min-w-[600px]">
               <thead>
@@ -134,7 +273,7 @@ export default function InventoryReports() {
               </thead>
               <tbody>
                 {overdueItems.map((i) => (
-                  <tr key={i.id} className="border-b border-surface-alt">
+                  <tr key={i.id} className="border-b border-surface-alt cursor-pointer hover:bg-surface-alt/50" onClick={() => setDetailId(i.id)}>
                     <td className="py-2 font-mono text-xs">{i.serialNumber}</td>
                     <td className="py-2">{i.itemName}</td>
                     <td className="py-2 font-semibold">{i.currentHolder ?? '—'}</td>
@@ -151,7 +290,7 @@ export default function InventoryReports() {
       <div className="card">
         <h2 className="font-semibold text-primary mb-3">Who Has What (Currently OUT)</h2>
         {itemsCurrentlyOut.length === 0 ? (
-          <p className="text-sm text-muted">All items are IN storage.</p>
+          <p className="text-sm text-muted">No items currently checked out.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm min-w-[650px]">
@@ -166,7 +305,7 @@ export default function InventoryReports() {
               </thead>
               <tbody>
                 {itemsCurrentlyOut.map((i) => (
-                  <tr key={i.id} className="border-b border-surface-alt">
+                  <tr key={i.id} className="border-b border-surface-alt cursor-pointer hover:bg-surface-alt/50" onClick={() => setDetailId(i.id)}>
                     <td className="py-2 font-mono text-xs">{i.serialNumber}</td>
                     <td className="py-2">{i.itemName}</td>
                     <td className="py-2 font-medium">{i.currentHolder ?? '—'}</td>
@@ -185,7 +324,7 @@ export default function InventoryReports() {
         <div className="flex flex-col sm:flex-row gap-2">
           <input
             className={`${modalInputClass} flex-1`}
-            placeholder="SN-KIT-1002"
+            placeholder="CH-017"
             value={serialQuery}
             onChange={(e) => setSerialQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && void handleSearch()}
@@ -201,56 +340,14 @@ export default function InventoryReports() {
               <p className="flex items-center gap-2"><span className="text-muted">Status:</span> <InventoryStatusBadge status={searchResult.item.status} /></p>
               <p><span className="text-muted">Holder:</span> {searchResult.item.currentHolder ?? '—'}</p>
               <p><span className="text-muted">Location:</span> {searchResult.item.location}</p>
-              <p><span className="text-muted">Last Movement:</span> {formatInventoryDate(searchResult.transactions[0]?.transactionDate ?? searchResult.item.updatedAt)}</p>
             </div>
-            <div>
-              <h3 className="text-sm font-semibold mb-2">Complete History</h3>
-              <ul className="space-y-1 text-sm">
-                {searchResult.transactions.map((tx) => (
-                  <li key={tx.id} className="text-muted">
-                    {formatTransactionLine(tx)}
-                    <span className="text-xs block">Entered by {tx.createdBy} · {formatInventoryDateTime(tx.transactionDate)}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <ul className="space-y-1 text-sm">
+              {searchResult.transactions.map((tx) => (
+                <li key={tx.id} className="text-muted">{formatTransactionLine(tx)} · {formatInventoryDateTime(tx.transactionDate)}</li>
+              ))}
+            </ul>
           </div>
         )}
-      </div>
-
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          { label: 'Total Items', value: inventoryItems.length },
-          { label: 'Items IN', value: itemsIn },
-          { label: 'Items OUT', value: itemsOut },
-          { label: 'Movements', value: filteredTx.length },
-        ].map((k) => (
-          <div key={k.label} className="card !py-4">
-            <p className="text-xs text-muted">{k.label}</p>
-            <p className="text-2xl font-bold text-primary">{k.value}</p>
-          </div>
-        ))}
-      </div>
-
-      <div className="grid lg:grid-cols-3 gap-4">
-        <div className="card">
-          <h3 className="text-sm font-semibold mb-2">By Category</h3>
-          <ul className="text-sm space-y-1">
-            {byCategory.map(([cat, n]) => <li key={cat}>{cat}: <strong>{n}</strong></li>)}
-          </ul>
-        </div>
-        <div className="card">
-          <h3 className="text-sm font-semibold mb-2">By Location</h3>
-          <ul className="text-sm space-y-1">
-            {byLocation.map(([loc, n]) => <li key={loc}>{loc}: <strong>{n}</strong></li>)}
-          </ul>
-        </div>
-        <div className="card">
-          <h3 className="text-sm font-semibold mb-2">Held by Staff (OUT)</h3>
-          <ul className="text-sm space-y-1">
-            {byHolder.length === 0 ? <li className="text-muted">None</li> : byHolder.map(([h, n]) => <li key={h}>{h}: <strong>{n}</strong></li>)}
-          </ul>
-        </div>
       </div>
 
       <div className="card">
@@ -289,7 +386,7 @@ export default function InventoryReports() {
               </thead>
               <tbody>
                 {filteredTx.slice(0, 100).map((tx) => {
-                  const item = inventoryItems.find((i) => i.id === tx.inventoryItemId);
+                  const item = normalizedItems.find((i) => i.id === tx.inventoryItemId);
                   return (
                     <tr key={tx.id} className="border-b border-surface-alt">
                       <td className="py-2">{formatInventoryDateTime(tx.transactionDate)}</td>
@@ -305,6 +402,17 @@ export default function InventoryReports() {
           </div>
         )}
       </div>
+
+      {detailItem && (
+        <InventoryItemDetailModal
+          item={detailItem}
+          transactions={inventoryTransactions}
+          onClose={() => setDetailId(null)}
+          canUpdateStatus
+          onUpdateStatus={updateInventoryItemStatus}
+          onStatusUpdated={() => setDetailId(null)}
+        />
+      )}
     </div>
   );
 }

@@ -1,8 +1,140 @@
-import type { InventoryItem, InventoryTransaction } from '../types';
+import type { InventoryItem, InventoryStatus, InventoryTransaction } from '../types';
 import { INVENTORY_CATEGORIES, INVENTORY_LOCATIONS } from '../types';
 
-/** Items OUT longer than this are flagged as overdue / missing */
+/** Items OUT longer than this are flagged as overdue */
 export const INVENTORY_OVERDUE_DAYS = 3;
+
+export function normalizeInventoryStatus(status: string): InventoryStatus {
+  if (status === 'IN') return 'AVAILABLE';
+  if (status === 'ISSUED') return 'OUT';
+  if (
+    status === 'AVAILABLE' ||
+    status === 'RESERVED' ||
+    status === 'MISSING' ||
+    status === 'DAMAGED' ||
+    status === 'OUT' ||
+    status === 'IN_TRANSIT' ||
+    status === 'UNDER_MAINTENANCE' ||
+    status === 'RETIRED'
+  ) {
+    return status;
+  }
+  return 'AVAILABLE';
+}
+
+export function isAvailableItem(item: InventoryItem): boolean {
+  return normalizeInventoryStatus(item.status) === 'AVAILABLE';
+}
+
+export interface InventoryTypeSummary {
+  itemName: string;
+  category: string;
+  total: number;
+  available: number;
+  reserved: number;
+  missing: number;
+  damaged: number;
+  out: number;
+  underMaintenance: number;
+  byLocation: Record<string, number>;
+}
+
+export interface MissingItemDetail {
+  item: InventoryItem;
+  lastKnownLocation: string;
+  lastMovement: {
+    from: string;
+    to: string;
+    date: string;
+    handledBy: string;
+    action: string;
+  } | null;
+}
+
+export function buildInventorySummaries(items: InventoryItem[]): InventoryTypeSummary[] {
+  const map = new Map<string, InventoryTypeSummary>();
+
+  for (const raw of items) {
+    const item = { ...raw, status: normalizeInventoryStatus(raw.status) };
+    let summary = map.get(item.itemName);
+    if (!summary) {
+      summary = {
+        itemName: item.itemName,
+        category: item.category,
+        total: 0,
+        available: 0,
+        reserved: 0,
+        missing: 0,
+        damaged: 0,
+        out: 0,
+        underMaintenance: 0,
+        byLocation: {},
+      };
+      map.set(item.itemName, summary);
+    }
+
+    summary.total += 1;
+    if (item.status === 'AVAILABLE') {
+      summary.available += 1;
+      summary.byLocation[item.location] = (summary.byLocation[item.location] ?? 0) + 1;
+    } else if (item.status === 'RESERVED') {
+      summary.reserved += 1;
+    } else if (item.status === 'MISSING') {
+      summary.missing += 1;
+    } else if (item.status === 'DAMAGED') {
+      summary.damaged += 1;
+    } else if (item.status === 'OUT') {
+      summary.out += 1;
+    } else if (item.status === 'UNDER_MAINTENANCE') {
+      summary.underMaintenance += 1;
+    }
+  }
+
+  return [...map.values()].sort((a, b) => a.itemName.localeCompare(b.itemName));
+}
+
+export function getLastMovementTransaction(
+  itemId: string,
+  transactions: InventoryTransaction[],
+): InventoryTransaction | undefined {
+  return transactions
+    .filter(
+      (t) =>
+        t.inventoryItemId === itemId &&
+        (t.action === 'TRANSFER' || t.action === 'OUT' || t.action === 'IN'),
+    )
+    .sort((a, b) => b.transactionDate.localeCompare(a.transactionDate))[0];
+}
+
+export function getMissingItemDetails(
+  items: InventoryItem[],
+  transactions: InventoryTransaction[],
+): MissingItemDetail[] {
+  return items
+    .filter((i) => normalizeInventoryStatus(i.status) === 'MISSING')
+    .map((item) => {
+      const lastMovement = getLastMovementTransaction(item.id, transactions);
+      return {
+        item: { ...item, status: normalizeInventoryStatus(item.status) },
+        lastKnownLocation: item.lastKnownLocation ?? item.location,
+        lastMovement: lastMovement
+          ? {
+              from: lastMovement.fromLocation,
+              to: lastMovement.toLocation,
+              date: lastMovement.transactionDate,
+              handledBy: lastMovement.createdBy,
+              action: lastMovement.action,
+            }
+          : null,
+      };
+    })
+    .sort((a, b) => a.item.serialNumber.localeCompare(b.item.serialNumber));
+}
+
+export function makeItemSerialPrefix(itemName: string): string {
+  const namePart = itemName.replace(/[^a-zA-Z0-9]/g, '').slice(0, 3).toUpperCase() || 'ITM';
+  return namePart;
+}
 
 export interface BulkInventoryRow {
   itemName: string;
@@ -116,13 +248,35 @@ export function getOverdueOutItems(
 }
 
 export function makeSerialPrefix(itemName: string, location: string): string {
-  const namePart = itemName.replace(/[^a-zA-Z0-9]/g, '').slice(0, 3).toUpperCase() || 'ITM';
+  const namePart = makeItemSerialPrefix(itemName);
   const hallMatch = location.match(/Hall\s+([ABC])/i);
   const hallPart = hallMatch ? hallMatch[1].toUpperCase() : 'ST';
   const sectionMatch = location.match(/(Red|Gold|Silver|Diamond|Section\s*1|Section\s*2|Full)/i);
   const sectionRaw = sectionMatch?.[1]?.replace(/\s+/g, '') ?? 'GEN';
   const sectionPart = sectionRaw.slice(0, 3).toUpperCase();
   return `${namePart}-${hallPart}-${sectionPart}`;
+}
+
+export function previewQuantitySerials(
+  itemName: string,
+  quantity: number,
+  existingSerials: Set<string>,
+): string[] {
+  const prefix = makeItemSerialPrefix(itemName);
+  const pad = Math.max(3, String(quantity).length);
+  const serials: string[] = [];
+  const used = new Set(existingSerials);
+  for (let i = 1; i <= quantity; i++) {
+    let serialNumber = `${prefix}-${String(i).padStart(pad, '0')}`;
+    let suffix = i;
+    while (used.has(serialNumber)) {
+      suffix++;
+      serialNumber = `${prefix}-${String(suffix).padStart(pad, '0')}`;
+    }
+    used.add(serialNumber);
+    serials.push(serialNumber);
+  }
+  return serials;
 }
 
 export function generateSerialNumbers(
