@@ -206,6 +206,8 @@ interface AppContextType extends AppState {
   updateKitchenStockThreshold: (item: string, minThreshold: number) => Promise<KitchenStock>;
   setCurrentUser: (user: User) => void;
   isAuthenticated: boolean;
+  /** True while validating a stored API session on startup. */
+  authChecking: boolean;
   login: (
     email: string,
     password: string,
@@ -309,11 +311,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return base;
   });
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    if (USE_API) return false;
     const storedAuth = loadStoredAuth();
     if (!storedAuth) return false;
-    const users = USE_API ? defaultState.users : loadState().users;
-    return users.some((u) => u.id === storedAuth.userId && u.isActive);
+    return loadState().users.some((u) => u.id === storedAuth.userId && u.isActive);
   });
+  const [authChecking, setAuthChecking] = useState(
+    () => USE_API && Boolean(loadStoredAuth()?.token),
+  );
   const [apiLoading, setApiLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -383,30 +388,41 @@ export function AppProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     (async () => {
       const storedAuth = loadStoredAuth();
-      if (!storedAuth?.token) return;
+      if (!storedAuth?.token) {
+        if (!cancelled) setAuthChecking(false);
+        return;
+      }
 
       try {
         setApiLoading(true);
         setApiError(null);
         setAuthToken(storedAuth.token);
-        await api.me();
+        const { user: sessionUser } = await api.me();
         if (cancelled) return;
         setIsAuthenticated(true);
         await refreshFromApi();
         if (cancelled) return;
-        if (storedAuth.userId) {
-          setState((prev) => {
-            const user = prev.users.find((u) => u.id === storedAuth.userId && u.isActive);
-            return user ? { ...prev, currentUser: user } : prev;
-          });
-        }
+        setState((prev) => {
+          const user =
+            prev.users.find((u) => u.id === sessionUser.id && u.isActive) ??
+            ({
+              ...sessionUser,
+              isActive: true,
+              phone: '',
+              createdAt: new Date().toISOString().split('T')[0],
+            } as User);
+          return { ...prev, currentUser: user };
+        });
       } catch (err) {
         setApiError(getErrorMessage(err, 'Session expired or API unavailable'));
         setAuthToken(null);
         clearStoredAuth();
         if (!cancelled) setIsAuthenticated(false);
       } finally {
-        if (!cancelled) setApiLoading(false);
+        if (!cancelled) {
+          setAuthChecking(false);
+          setApiLoading(false);
+        }
       }
     })();
     return () => {
@@ -2006,6 +2022,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     updateKitchenStockThreshold: updateKitchenStockThresholdFn,
     setCurrentUser,
     isAuthenticated,
+    authChecking,
     login,
     logout,
     apiMode: USE_API,

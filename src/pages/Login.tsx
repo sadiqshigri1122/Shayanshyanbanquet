@@ -15,7 +15,9 @@ import {
   Shield,
   ShieldCheck,
   UserCog,
+  Package,
 } from 'lucide-react';
+import DashboardLoading from '../components/DashboardLoading';
 import { useApp } from '../context/AppContext';
 import { dashboardPathForRole } from '../utils/authUtils';
 
@@ -37,6 +39,14 @@ const DEMO_ACCOUNTS = [
     accent: 'border-primary/20 bg-primary/5 hover:bg-primary/10',
   },
   {
+    label: 'Inventory Staff',
+    shortLabel: 'Inventory',
+    email: 'inventory@shayanbanquet.pk',
+    description: 'Stock in/out, kitchen purchases & usage',
+    icon: Package,
+    accent: 'border-emerald-200 bg-emerald-50/60 hover:bg-emerald-50',
+  },
+  {
     label: 'Administrator',
     shortLabel: 'Admin',
     email: 'admin@shayanbanquet.pk',
@@ -53,7 +63,7 @@ const FEATURES = [
 ] as const;
 
 export default function Login() {
-  const { login, isAuthenticated, currentUser } = useApp();
+  const { login, isAuthenticated, authChecking, currentUser } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
   const from = (location.state as { from?: string } | null)?.from;
@@ -65,6 +75,10 @@ export default function Login() {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [selectedDemo, setSelectedDemo] = useState<string | null>(null);
+
+  if (authChecking) {
+    return <DashboardLoading label="Checking session…" />;
+  }
 
   if (isAuthenticated && !submitting) {
     const target = from ?? dashboardPathForRole(currentUser.role);

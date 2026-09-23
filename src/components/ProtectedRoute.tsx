@@ -6,6 +6,7 @@ import {
   resolveStaffLink,
   type DashboardRole,
 } from '../utils/staffRoutes';
+import DashboardLoading from './DashboardLoading';
 
 interface Props {
   dashboard?: DashboardRole;
@@ -22,8 +23,12 @@ function redirectTarget(role: import('../types').UserRole, pathname: string): st
 }
 
 export default function ProtectedRoute({ dashboard }: Props) {
-  const { isAuthenticated, currentUser } = useApp();
+  const { isAuthenticated, authChecking, currentUser } = useApp();
   const location = useLocation();
+
+  if (authChecking) {
+    return <DashboardLoading label="Verifying session…" />;
+  }
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;

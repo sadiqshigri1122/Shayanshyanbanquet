@@ -2,7 +2,7 @@ import { useLocation } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
-const dashboardPrefixes = ['/office', '/manager', '/admin'];
+const dashboardPrefixes = ['/office', '/inventory', '/manager', '/admin'];
 
 export default function ApiStatusBanner() {
   const { apiMode, apiLoading, apiError, actionError, clearActionError } = useApp();
