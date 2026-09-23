@@ -92,7 +92,12 @@ apiRouter.use('/auth', authRouter);
 
 apiRouter.get(
   '/health',
-  handle(async () => ({ ok: true, service: 'shayan-banquet-api' })),
+  handle(async () => ({
+    ok: true,
+    service: 'shayan-banquet-api',
+    apiVersion: '2026-09-23-inventory',
+    roles: USER_ROLES,
+  })),
 );
 
 apiRouter.get('/state', ...staffRead, handle(async () => getFullAppState()));
