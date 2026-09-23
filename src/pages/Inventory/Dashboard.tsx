@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { Package, ArrowDownCircle, ArrowUpCircle, ShoppingCart, AlertTriangle } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useDashboard } from '../../context/DashboardContext';
-import { formatInventoryDateTime } from '../../utils/inventoryUtils';
+import { formatInventoryDateTime, getOverdueOutItems, INVENTORY_OVERDUE_DAYS } from '../../utils/inventoryUtils';
 import { formatCurrency } from '../../utils/bookingUtils';
 import { isLowStock } from '../../utils/inventoryUtils';
 import InventoryStatusBadge from '../../components/InventoryStatusBadge';
@@ -23,13 +23,26 @@ export default function InventoryDashboard() {
   const recentPurchases = [...kitchenPurchases]
     .sort((a, b) => b.purchaseDate.localeCompare(a.purchaseDate))
     .slice(0, 5);
+  const overdueItems = getOverdueOutItems(inventoryItems, inventoryTransactions);
 
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
         <h1 className="text-2xl font-bold text-primary">Inventory Dashboard</h1>
-        <p className="text-muted text-sm mt-0.5">Equipment tracking & kitchen operations</p>
+        <p className="text-muted text-sm mt-0.5">Know what you have, where it is, and who took it</p>
       </div>
+
+      {overdueItems.length > 0 && (
+        <div className="card border-l-4 border-l-warning">
+          <p className="font-semibold text-warning">{overdueItems.length} item(s) not returned ({INVENTORY_OVERDUE_DAYS}+ days OUT)</p>
+          <ul className="text-sm mt-2 space-y-1">
+            {overdueItems.slice(0, 5).map((i) => (
+              <li key={i.id}>{i.serialNumber} — {i.itemName} → <strong>{i.currentHolder}</strong> ({i.daysOut} days)</li>
+            ))}
+          </ul>
+          <Link to={path('/items')} className="text-xs text-secondary font-semibold mt-2 inline-block">View all items</Link>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
@@ -112,9 +125,12 @@ export default function InventoryDashboard() {
               ))}
             </ul>
           )}
-          <Link to={path('/kitchen/purchases')} className="btn-primary !px-4 !py-2 !text-sm mt-4 inline-flex items-center gap-2">
-            <ShoppingCart size={16} /> New Purchase
-          </Link>
+          <div className="flex flex-wrap gap-2 mt-4">
+            <Link to={path('/kitchen/purchases')} className="btn-primary !px-4 !py-2 !text-sm inline-flex items-center gap-2">
+              <ShoppingCart size={16} /> New Purchase
+            </Link>
+            <Link to={path('/bulk-add')} className="btn-secondary !px-4 !py-2 !text-sm">Bulk Add Items</Link>
+          </div>
         </div>
       </div>
     </div>

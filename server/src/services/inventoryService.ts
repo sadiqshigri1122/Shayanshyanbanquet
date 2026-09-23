@@ -165,6 +165,14 @@ export async function recordStockOut(
     throw new ApiError(`Item is currently ${item.status}. Only IN items can be checked out.`, 400);
   }
 
+  const fromLocation = input.fromLocation.trim();
+  if (fromLocation !== item.location) {
+    throw new ApiError(
+      `From location must match the item's current location (${item.location}). Update location first if the item moved.`,
+      400,
+    );
+  }
+
   if (input.bookingId) {
     const booking = await prisma.booking.findUnique({ where: { id: input.bookingId } });
     if (!booking) throw new ApiError('Related booking not found.', 400);
@@ -283,4 +291,47 @@ export async function recordStockIn(
   });
 
   return prisma.inventoryItem.findUniqueOrThrow({ where: { id: item.id } });
+}
+
+export type BulkInventoryItemInput = {
+  itemName: string;
+  category: string;
+  serialNumber: string;
+  location: string;
+  purchaseDate?: string;
+  purchaseReference?: string;
+  supplier?: string;
+  notes?: string;
+};
+
+export async function bulkCreateInventoryItems(items: BulkInventoryItemInput[], createdBy: string) {
+  const created: Awaited<ReturnType<typeof createInventoryItem>>[] = [];
+  const errors: { index: number; serialNumber: string; error: string }[] = [];
+
+  for (let index = 0; index < items.length; index++) {
+    const row = items[index];
+    try {
+      const item = await createInventoryItem(row, createdBy);
+      created.push(item);
+    } catch (err) {
+      errors.push({
+        index,
+        serialNumber: row.serialNumber?.trim() || `row-${index + 1}`,
+        error: err instanceof ApiError ? err.message : 'Could not create item.',
+      });
+    }
+  }
+
+  if (created.length > 0) {
+    await appendAuditLog({
+      action: 'bulk_create',
+      entity: 'inventory_item',
+      entityId: created[0].id,
+      performedBy: createdBy,
+      details: `Bulk import: ${created.length} item(s) added${errors.length ? `, ${errors.length} failed` : ''}`,
+      newValue: JSON.stringify({ created: created.length, failed: errors.length }),
+    });
+  }
+
+  return { created: created.length, items: created, errors };
 }

@@ -1,23 +1,34 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
+import { useDashboard } from '../../context/DashboardContext';
 import InventoryStatusBadge from '../../components/InventoryStatusBadge';
+import InventoryItemDetailModal from '../../components/InventoryItemDetailModal';
 import Modal from '../../components/Modal';
+import { getDaysOut, isOverdueOut } from '../../utils/inventoryUtils';
 import ModalField, { modalFormClass, modalInputClass, modalSelectClass, modalTextareaClass } from '../../components/ModalField';
 import { INVENTORY_CATEGORIES } from '../../types';
 import { getErrorMessage } from '../../utils/errorMessage';
 
 export default function AllItems() {
-  const { inventoryItems, updateInventoryItemMeta, currentUser } = useApp();
+  const { inventoryItems, inventoryTransactions, updateInventoryItemMeta, currentUser } = useApp();
+  const { path } = useDashboard();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'IN' | 'OUT'>('all');
+  const [locationFilter, setLocationFilter] = useState('all');
+  const [detailId, setDetailId] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ itemName: '', category: INVENTORY_CATEGORIES[0] as string, supplier: '', notes: '' });
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  const locations = useMemo(() => [...new Set(inventoryItems.map((i) => i.location))].sort(), [inventoryItems]);
+  const detailItem = detailId ? inventoryItems.find((i) => i.id === detailId) : null;
+
   const filtered = useMemo(() => {
     return inventoryItems.filter((i) => {
       if (statusFilter !== 'all' && i.status !== statusFilter) return false;
+      if (locationFilter !== 'all' && i.location !== locationFilter) return false;
       const q = search.trim().toLowerCase();
       if (!q) return true;
       return (
@@ -27,7 +38,7 @@ export default function AllItems() {
         (i.currentHolder?.toLowerCase().includes(q) ?? false)
       );
     });
-  }, [inventoryItems, search, statusFilter]);
+  }, [inventoryItems, search, statusFilter, locationFilter]);
 
   const openEdit = (id: string) => {
     const item = inventoryItems.find((i) => i.id === id);
@@ -65,9 +76,14 @@ export default function AllItems() {
 
   return (
     <div className="animate-fade-in space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-primary">All Items</h1>
-        <p className="text-sm text-muted">Serialized equipment inventory</p>
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-primary">All Items</h1>
+          <p className="text-sm text-muted">Click any row to see who has it and full history</p>
+        </div>
+        {currentUser.role === 'inventory_staff' && (
+          <Link to={path('/bulk-add')} className="btn-primary !text-sm">Bulk Add Items</Link>
+        )}
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
@@ -81,6 +97,10 @@ export default function AllItems() {
           <option value="all">All status</option>
           <option value="IN">IN</option>
           <option value="OUT">OUT</option>
+        </select>
+        <select className={`${modalSelectClass} sm:w-48`} value={locationFilter} onChange={(e) => setLocationFilter(e.target.value)}>
+          <option value="all">All locations</option>
+          {locations.map((l) => <option key={l} value={l}>{l}</option>)}
         </select>
       </div>
 
@@ -102,26 +122,49 @@ export default function AllItems() {
             {filtered.length === 0 ? (
               <tr><td colSpan={8} className="px-4 py-8 text-center text-muted">No items found.</td></tr>
             ) : (
-              filtered.map((i) => (
-                <tr key={i.id} className="border-b border-surface-alt hover:bg-surface-alt/50">
+              filtered.map((i) => {
+                const overdue = isOverdueOut(i, inventoryTransactions);
+                const daysOut = getDaysOut(i, inventoryTransactions);
+                return (
+                <tr
+                  key={i.id}
+                  className={`border-b border-surface-alt hover:bg-surface-alt/50 cursor-pointer ${overdue ? 'bg-warning/5' : ''}`}
+                  onClick={() => setDetailId(i.id)}
+                >
                   <td className="px-4 py-3 font-mono text-xs">{i.serialNumber}</td>
                   <td className="px-4 py-3 font-medium">{i.itemName}</td>
                   <td className="px-4 py-3 text-muted">{i.category}</td>
                   <td className="px-4 py-3"><InventoryStatusBadge status={i.status} /></td>
                   <td className="px-4 py-3">{i.location}</td>
-                  <td className="px-4 py-3">{i.currentHolder ?? '—'}</td>
-                  <td className="px-4 py-3 text-muted">{i.createdBy}</td>
                   <td className="px-4 py-3">
+                    {i.currentHolder ?? '—'}
+                    {overdue && daysOut !== null && (
+                      <span className="block text-xs text-warning font-semibold">{daysOut}d overdue</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-muted">{i.createdBy}</td>
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                     {currentUser.role === 'inventory_staff' && (
                       <button type="button" className="text-secondary text-xs font-semibold" onClick={() => openEdit(i.id)}>Edit</button>
                     )}
                   </td>
                 </tr>
-              ))
+              );})
             )}
           </tbody>
         </table>
       </div>
+
+      {detailItem && (
+        <InventoryItemDetailModal
+          item={detailItem}
+          transactions={inventoryTransactions}
+          onClose={() => setDetailId(null)}
+          stockOutPath={path('/stock-out')}
+          stockInPath={path('/stock-in')}
+          showActions={currentUser.role === 'inventory_staff'}
+        />
+      )}
 
       {editId && (
       <Modal onClose={() => !submitting && setEditId(null)} title="Edit Item">

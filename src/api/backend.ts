@@ -171,6 +171,12 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+  bulkCreateInventoryItems: (body: { items: unknown[] }) =>
+    request<{
+      created: number;
+      items: import('../types').InventoryItem[];
+      errors: { index: number; serialNumber: string; error: string }[];
+    }>('/api/inventory/items/bulk', { method: 'POST', body: JSON.stringify(body) }),
   updateInventoryItem: (id: string, body: unknown) =>
     request<import('../types').InventoryItem>(`/api/inventory/items/${encodeURIComponent(id)}`, {
       method: 'PATCH',

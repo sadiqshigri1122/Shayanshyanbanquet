@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import ModalField, { modalFormClass, modalInputClass, modalSelectClass, modalTextareaClass } from '../../components/ModalField';
 import { INVENTORY_LOCATIONS } from '../../types';
@@ -7,8 +8,10 @@ import InventoryStatusBadge from '../../components/InventoryStatusBadge';
 
 export default function StockOut() {
   const { inventoryItems, bookings, performStockOut } = useApp();
+  const location = useLocation();
+  const prefillSerial = (location.state as { serial?: string } | null)?.serial ?? '';
   const [form, setForm] = useState({
-    serialNumber: '',
+    serialNumber: prefillSerial,
     fromLocation: INVENTORY_LOCATIONS[0] as string,
     toLocation: INVENTORY_LOCATIONS[1] as string,
     givenTo: '',
@@ -36,6 +39,10 @@ export default function StockOut() {
       fromLocation: item?.location ?? f.fromLocation,
     }));
   };
+
+  useEffect(() => {
+    if (prefillSerial) onSerialChange(prefillSerial);
+  }, [prefillSerial, inventoryItems]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,9 +110,15 @@ export default function StockOut() {
           )}
 
           <ModalField label="From Location *">
-            <select className={modalSelectClass} value={form.fromLocation} onChange={(e) => setForm({ ...form, fromLocation: e.target.value })}>
-              {INVENTORY_LOCATIONS.map((l) => <option key={l} value={l}>{l}</option>)}
-            </select>
+            <input
+              className={`${modalInputClass} bg-surface-alt`}
+              value={form.fromLocation}
+              readOnly
+              title="Must match item's current location"
+            />
+            {selectedItem && form.fromLocation !== selectedItem.location && (
+              <p className="text-danger text-xs mt-1">Location mismatch — item is at {selectedItem.location}.</p>
+            )}
           </ModalField>
           <ModalField label="To Location *">
             <select className={modalSelectClass} value={form.toLocation} onChange={(e) => setForm({ ...form, toLocation: e.target.value })}>

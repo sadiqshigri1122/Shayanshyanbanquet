@@ -2,6 +2,8 @@
 // Core Data Types for Shayan Banquet & Lawn Management System
 // ============================================================
 
+import { HALL_SUB_VENUES } from '../utils/venueConfig';
+
 // --- User & Auth ---
 export type UserRole = 'booking_office' | 'inventory_staff' | 'manager' | 'super_admin';
 
@@ -359,12 +361,21 @@ export const KITCHEN_CATEGORIES = [
   'Other',
 ] as const;
 
-export const INVENTORY_LOCATIONS = [
+/** Storage / shared areas (not tied to a single hall) */
+export const INVENTORY_STORAGE_LOCATIONS = [
   'Kitchen Store',
   'Kitchen',
   'Store Room',
   'Office',
-  'Event Floor',
+  'Receiving',
+] as const;
+
+/** All hall sections (A, B, C sub-venues) for per-hall asset tracking */
+export const INVENTORY_HALL_LOCATIONS = HALL_SUB_VENUES.map((v) => v.location);
+
+export const INVENTORY_LOCATIONS = [
+  ...INVENTORY_STORAGE_LOCATIONS,
+  ...INVENTORY_HALL_LOCATIONS,
 ] as const;
 
 // --- Dashboard KPIs ---

@@ -2,7 +2,15 @@ import { useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import InventoryStatusBadge from '../../components/InventoryStatusBadge';
 import { modalInputClass } from '../../components/ModalField';
-import { formatInventoryDate, formatInventoryDateTime, formatTransactionLine, filterByDateRange } from '../../utils/inventoryUtils';
+import {
+  formatInventoryDate,
+  formatInventoryDateTime,
+  formatTransactionLine,
+  filterByDateRange,
+  getDaysOut,
+  getOverdueOutItems,
+  INVENTORY_OVERDUE_DAYS,
+} from '../../utils/inventoryUtils';
 import { exportTableCsv } from '../../utils/inventoryUtils';
 
 type DateRange = 'today' | 'week' | 'month' | 'custom' | 'all';
@@ -54,6 +62,20 @@ export default function InventoryReports() {
     return [...map.entries()].sort((a, b) => b[1] - a[1]);
   }, [filteredTx]);
 
+  const overdueItems = useMemo(
+    () => getOverdueOutItems(inventoryItems, inventoryTransactions),
+    [inventoryItems, inventoryTransactions],
+  );
+
+  const itemsCurrentlyOut = useMemo(
+    () =>
+      inventoryItems
+        .filter((i) => i.status === 'OUT')
+        .map((i) => ({ ...i, daysOut: getDaysOut(i, inventoryTransactions) }))
+        .sort((a, b) => (b.daysOut ?? 0) - (a.daysOut ?? 0)),
+    [inventoryItems, inventoryTransactions],
+  );
+
   const handleSearch = async () => {
     setSearchError('');
     setSearchResult(null);
@@ -88,9 +110,74 @@ export default function InventoryReports() {
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-primary">Inventory Reports</h1>
-          <p className="text-sm text-muted">Manager oversight & serial number search</p>
+          <p className="text-sm text-muted">Track what exists, who has it, and what is overdue</p>
         </div>
         <button type="button" className="btn-secondary !text-sm" onClick={exportCsv}>Export CSV</button>
+      </div>
+
+      {overdueItems.length > 0 && (
+        <div className="card border-l-4 border-l-warning">
+          <h2 className="font-semibold text-warning mb-2">
+            {overdueItems.length} item(s) overdue (OUT {INVENTORY_OVERDUE_DAYS}+ days)
+          </h2>
+          <p className="text-sm text-muted mb-3">These may be lost or forgotten — follow up immediately.</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[600px]">
+              <thead>
+                <tr className="border-b border-border text-left">
+                  <th className="py-2">Serial</th>
+                  <th className="py-2">Item</th>
+                  <th className="py-2">Holder</th>
+                  <th className="py-2">Location</th>
+                  <th className="py-2">Days OUT</th>
+                </tr>
+              </thead>
+              <tbody>
+                {overdueItems.map((i) => (
+                  <tr key={i.id} className="border-b border-surface-alt">
+                    <td className="py-2 font-mono text-xs">{i.serialNumber}</td>
+                    <td className="py-2">{i.itemName}</td>
+                    <td className="py-2 font-semibold">{i.currentHolder ?? '—'}</td>
+                    <td className="py-2">{i.location}</td>
+                    <td className="py-2 text-warning font-semibold">{i.daysOut}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      <div className="card">
+        <h2 className="font-semibold text-primary mb-3">Who Has What (Currently OUT)</h2>
+        {itemsCurrentlyOut.length === 0 ? (
+          <p className="text-sm text-muted">All items are IN storage.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[650px]">
+              <thead>
+                <tr className="border-b border-border text-left">
+                  <th className="py-2">Serial</th>
+                  <th className="py-2">Item</th>
+                  <th className="py-2">Taken By</th>
+                  <th className="py-2">At Location</th>
+                  <th className="py-2">Days OUT</th>
+                </tr>
+              </thead>
+              <tbody>
+                {itemsCurrentlyOut.map((i) => (
+                  <tr key={i.id} className="border-b border-surface-alt">
+                    <td className="py-2 font-mono text-xs">{i.serialNumber}</td>
+                    <td className="py-2">{i.itemName}</td>
+                    <td className="py-2 font-medium">{i.currentHolder ?? '—'}</td>
+                    <td className="py-2">{i.location}</td>
+                    <td className="py-2">{i.daysOut ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <div className="card">
@@ -181,9 +268,42 @@ export default function InventoryReports() {
           </div>
         )}
         <h3 className="text-sm font-semibold mb-2">User-wise Activity</h3>
-        <ul className="text-sm flex flex-wrap gap-4 mb-4">
+        <ul className="text-sm flex flex-wrap gap-4 mb-6">
           {userActivity.map(([user, n]) => <li key={user}>{user}: <strong>{n}</strong> transactions</li>)}
         </ul>
+
+        <h3 className="text-sm font-semibold mb-2">Movement Log</h3>
+        {filteredTx.length === 0 ? (
+          <p className="text-sm text-muted">No movements in this period.</p>
+        ) : (
+          <div className="overflow-x-auto max-h-80 overflow-y-auto">
+            <table className="w-full text-sm min-w-[700px]">
+              <thead className="sticky top-0 bg-white">
+                <tr className="border-b border-border text-left">
+                  <th className="py-2">Date</th>
+                  <th className="py-2">Action</th>
+                  <th className="py-2">Serial</th>
+                  <th className="py-2">Person</th>
+                  <th className="py-2">From → To</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredTx.slice(0, 100).map((tx) => {
+                  const item = inventoryItems.find((i) => i.id === tx.inventoryItemId);
+                  return (
+                    <tr key={tx.id} className="border-b border-surface-alt">
+                      <td className="py-2">{formatInventoryDateTime(tx.transactionDate)}</td>
+                      <td className="py-2"><InventoryStatusBadge status={tx.action} /></td>
+                      <td className="py-2 font-mono text-xs">{tx.serialNumber}</td>
+                      <td className="py-2">{tx.person}</td>
+                      <td className="py-2 text-muted">{item?.itemName ?? '—'} · {tx.fromLocation} → {tx.toLocation}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

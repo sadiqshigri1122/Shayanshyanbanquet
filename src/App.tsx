@@ -32,12 +32,14 @@ import KitchenReports from './pages/Manager/KitchenReports';
 import InventoryDashboard from './pages/Inventory/Dashboard';
 import AllItems from './pages/Inventory/AllItems';
 import AddItem from './pages/Inventory/AddItem';
+import BulkAddItems from './pages/Inventory/BulkAddItems';
 import StockOut from './pages/Inventory/StockOut';
 import StockIn from './pages/Inventory/StockIn';
 import InventoryHistory from './pages/Inventory/History';
 import KitchenPurchases from './pages/Inventory/KitchenPurchases';
 import KitchenPurchaseHistory from './pages/Inventory/KitchenPurchaseHistory';
 import KitchenStockPage from './pages/Inventory/KitchenStock';
+import KitchenUsageHistory from './pages/Inventory/KitchenUsageHistory';
 
 // Admin
 import AdminDashboard from './pages/Admin/Dashboard';
@@ -78,12 +80,14 @@ function App() {
               <Route index element={<InventoryDashboard />} />
               <Route path="items" element={<AllItems />} />
               <Route path="add-item" element={<AddItem />} />
+              <Route path="bulk-add" element={<BulkAddItems />} />
               <Route path="stock-out" element={<StockOut />} />
               <Route path="stock-in" element={<StockIn />} />
               <Route path="history" element={<InventoryHistory />} />
               <Route path="kitchen/purchases" element={<KitchenPurchases />} />
               <Route path="kitchen/history" element={<KitchenPurchaseHistory />} />
               <Route path="kitchen/stock" element={<KitchenStockPage />} />
+              <Route path="kitchen/usage" element={<KitchenUsageHistory />} />
             </Route>
           </Route>
 

@@ -170,6 +170,9 @@ interface AppContextType extends AppState {
   deleteEventExpense: (id: string, by: string) => Promise<boolean>;
   getEventExpensesForBooking: (bookingId: string) => EventExpense[];
   createInventoryItem: (data: Omit<InventoryItem, 'id' | 'status' | 'createdAt' | 'updatedAt' | 'createdBy'>) => Promise<InventoryItem>;
+  bulkCreateInventoryItems: (
+    items: Array<Omit<InventoryItem, 'id' | 'status' | 'createdAt' | 'updatedAt' | 'createdBy'>>,
+  ) => Promise<{ created: number; errors: { index: number; serialNumber: string; error: string }[] }>;
   updateInventoryItemMeta: (id: string, data: Partial<Pick<InventoryItem, 'itemName' | 'category' | 'purchaseDate' | 'purchaseReference' | 'supplier' | 'notes'>>) => Promise<InventoryItem>;
   performStockOut: (data: {
     serialNumber: string;
@@ -200,6 +203,7 @@ interface AppContextType extends AppState {
     usedBy: string;
     usedAt?: string;
   }) => Promise<KitchenStock>;
+  updateKitchenStockThreshold: (item: string, minThreshold: number) => Promise<KitchenStock>;
   setCurrentUser: (user: User) => void;
   isAuthenticated: boolean;
   login: (
@@ -1663,6 +1667,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [state.currentUser.name, clearActionError, refreshFromApi],
   );
 
+  const bulkCreateInventoryItemsFn = useCallback(
+    async (
+      items: Array<Omit<InventoryItem, 'id' | 'status' | 'createdAt' | 'updatedAt' | 'createdBy'>>,
+    ) => {
+      const createdBy = state.currentUser.name;
+      if (USE_API) {
+        clearActionError();
+        const result = await api.bulkCreateInventoryItems({ items: items.map((i) => ({ ...i, createdBy })) });
+        await refreshFromApi();
+        return { created: result.created, errors: result.errors };
+      }
+      const errors: { index: number; serialNumber: string; error: string }[] = [];
+      let created = 0;
+      for (let index = 0; index < items.length; index++) {
+        try {
+          await createInventoryItemFn(items[index]);
+          created++;
+        } catch (err) {
+          errors.push({
+            index,
+            serialNumber: items[index].serialNumber,
+            error: err instanceof Error ? err.message : 'Could not create item.',
+          });
+        }
+      }
+      return { created, errors };
+    },
+    [state.currentUser.name, clearActionError, refreshFromApi, createInventoryItemFn],
+  );
+
   const updateInventoryItemMetaFn = useCallback(
     async (
       id: string,
@@ -1709,6 +1743,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const existing = state.inventoryItems.find((i) => i.serialNumber === data.serialNumber.trim());
       if (!existing) throw new Error('Item not found');
       if (existing.status !== 'IN') throw new Error('Item is not available (IN)');
+      if (data.fromLocation.trim() !== existing.location) {
+        throw new Error(`From location must match item location (${existing.location}).`);
+      }
       const ts = new Date().toISOString();
       const item: InventoryItem = {
         ...existing,
@@ -1904,6 +1941,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [state.currentUser.name, state.kitchenStock, clearActionError, refreshFromApi],
   );
 
+  const updateKitchenStockThresholdFn = useCallback(
+    async (item: string, minThreshold: number) => {
+      if (USE_API) {
+        clearActionError();
+        const stock = await api.updateKitchenStockThreshold(item, minThreshold);
+        setState((prev) => ({
+          ...prev,
+          kitchenStock: upsertKitchenStock(prev.kitchenStock, stock),
+        }));
+        return stock;
+      }
+      const existing = state.kitchenStock.find((s) => s.item === item);
+      if (!existing) throw new Error('Stock item not found');
+      const updated: KitchenStock = {
+        ...existing,
+        minThreshold,
+        updatedAt: new Date().toISOString(),
+      };
+      setState((prev) => ({
+        ...prev,
+        kitchenStock: upsertKitchenStock(prev.kitchenStock, updated),
+      }));
+      return updated;
+    },
+    [state.kitchenStock, clearActionError],
+  );
+
   const value: AppContextType = {
     ...state,
     services,
@@ -1932,12 +1996,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     deleteEventExpense,
     getEventExpensesForBooking,
     createInventoryItem: createInventoryItemFn,
+    bulkCreateInventoryItems: bulkCreateInventoryItemsFn,
     updateInventoryItemMeta: updateInventoryItemMetaFn,
     performStockOut: performStockOutFn,
     performStockIn: performStockInFn,
     searchInventoryBySerial: searchInventoryBySerialFn,
     createKitchenPurchase: createKitchenPurchaseFn,
     recordKitchenUsage: recordKitchenUsageFn,
+    updateKitchenStockThreshold: updateKitchenStockThresholdFn,
     setCurrentUser,
     isAuthenticated,
     login,

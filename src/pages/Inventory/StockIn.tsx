@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import ModalField, { modalFormClass, modalInputClass, modalSelectClass, modalTextareaClass } from '../../components/ModalField';
 import { INVENTORY_LOCATIONS } from '../../types';
@@ -9,8 +10,10 @@ const CONDITIONS = ['Good', 'Fair', 'Needs Repair', 'Damaged'] as const;
 
 export default function StockIn() {
   const { inventoryItems, bookings, performStockIn } = useApp();
+  const location = useLocation();
+  const prefillSerial = (location.state as { serial?: string } | null)?.serial ?? '';
   const [form, setForm] = useState({
-    serialNumber: '',
+    serialNumber: prefillSerial,
     fromLocation: INVENTORY_LOCATIONS[1] as string,
     toLocation: INVENTORY_LOCATIONS[0] as string,
     returnedBy: '',
@@ -39,6 +42,10 @@ export default function StockIn() {
       returnedBy: item?.currentHolder ?? f.returnedBy,
     }));
   };
+
+  useEffect(() => {
+    if (prefillSerial) onSerialChange(prefillSerial);
+  }, [prefillSerial, inventoryItems]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { useApp, computeKPIs } from '../../context/AppContext';
 import { formatCurrency, getStatusColor, BLOCKING_STATUSES } from '../../utils/bookingUtils';
-import { formatInventoryDateTime, isLowStock } from '../../utils/inventoryUtils';
+import { formatInventoryDateTime, getOverdueOutItems, isLowStock } from '../../utils/inventoryUtils';
 import InventoryStatusBadge from '../../components/InventoryStatusBadge';
 
 export default function ManagerDashboard() {
@@ -27,6 +27,7 @@ export default function ManagerDashboard() {
   const lowStockCount = kitchenStock.filter((s) => isLowStock(s.currentQuantity, s.minThreshold)).length;
   const recentInventoryTx = [...inventoryTransactions].sort((a, b) => b.transactionDate.localeCompare(a.transactionDate)).slice(0, 5);
   const recentKitchenPurchases = [...kitchenPurchases].sort((a, b) => b.purchaseDate.localeCompare(a.purchaseDate)).slice(0, 5);
+  const overdueCount = getOverdueOutItems(inventoryItems, inventoryTransactions).length;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -117,11 +118,19 @@ export default function ManagerDashboard() {
 
       <div>
         <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Inventory & Kitchen</h2>
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
+        {overdueCount > 0 && (
+          <Link to="/manager/inventory-reports" className="block card border-l-4 border-l-warning mb-4 hover:opacity-90">
+            <p className="font-semibold text-warning">{overdueCount} inventory item(s) overdue — not returned on time</p>
+            <p className="text-sm text-muted mt-1">Open Inventory Reports to see who has them.</p>
+          </Link>
+        )}
+
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-4">
           {[
             { label: 'Inventory Items', value: inventoryItems.length, link: '/manager/inventory-reports' },
             { label: 'Items IN', value: inventoryItems.filter((i) => i.status === 'IN').length },
             { label: 'Items OUT', value: inventoryItems.filter((i) => i.status === 'OUT').length },
+            { label: 'Overdue OUT', value: overdueCount, warn: overdueCount > 0, link: '/manager/inventory-reports' },
             { label: 'Kitchen Purchases (Month)', value: kitchenPurchasesThisMonth.length },
             { label: 'Low Stock Items', value: lowStockCount, warn: lowStockCount > 0 },
           ].map((card) => (

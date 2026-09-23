@@ -35,6 +35,7 @@ import {
   recordStockIn,
   recordStockOut,
   updateInventoryItem,
+  bulkCreateInventoryItems,
 } from '../services/inventoryService.js';
 import {
   createKitchenPurchase,
@@ -312,23 +313,36 @@ apiRouter.post(
   }),
 );
 
+const inventoryItemBodySchema = z.object({
+  itemName: z.string().min(1).max(200),
+  category: z.string().min(1).max(100),
+  serialNumber: z.string().min(1).max(100),
+  location: z.string().min(1).max(200),
+  purchaseDate: z.string().optional(),
+  purchaseReference: z.string().max(100).optional(),
+  supplier: z.string().max(200).optional(),
+  notes: z.string().max(1000).optional(),
+});
+
 apiRouter.post(
   '/inventory/items',
   ...inventoryWrite,
   handle(async (req) => {
+    const body = inventoryItemBodySchema.parse(req.body);
+    return createInventoryItem(body, actorName(req));
+  }),
+);
+
+apiRouter.post(
+  '/inventory/items/bulk',
+  ...inventoryWrite,
+  handle(async (req) => {
     const body = z
       .object({
-        itemName: z.string().min(1).max(200),
-        category: z.string().min(1).max(100),
-        serialNumber: z.string().min(1).max(100),
-        location: z.string().min(1).max(200),
-        purchaseDate: z.string().optional(),
-        purchaseReference: z.string().max(100).optional(),
-        supplier: z.string().max(200).optional(),
-        notes: z.string().max(1000).optional(),
+        items: z.array(inventoryItemBodySchema).min(1).max(500),
       })
       .parse(req.body);
-    return createInventoryItem(body, actorName(req));
+    return bulkCreateInventoryItems(body.items, actorName(req));
   }),
 );
 
