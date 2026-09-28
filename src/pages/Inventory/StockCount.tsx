@@ -54,22 +54,24 @@ export default function StockCount() {
     setError('');
     setSuccess('');
 
-    const payload = lines.map((l) => {
-      const actual = Number(l.actualGoodQty);
-      const missing = Math.max(0, l.systemGoodQty - actual);
-      const surplus = Math.max(0, actual - l.systemGoodQty);
-      if ((missing > 0 || surplus > 0) && !l.remarks.trim()) {
-        throw new Error(`Remarks required for ${l.itemName} — count differs from system.`);
-      }
-      return {
-        itemTypeId: l.itemTypeId,
-        actualGoodQty: actual,
-        remarks: l.remarks.trim() || undefined,
-      };
-    });
-
     setSubmitting(true);
     try {
+      const payload = lines.map((l) => {
+        const actual = Number(l.actualGoodQty);
+        if (!Number.isFinite(actual) || actual < 0) {
+          throw new Error(`Enter a valid count for ${l.itemName}.`);
+        }
+        const missing = Math.max(0, l.systemGoodQty - actual);
+        const surplus = Math.max(0, actual - l.systemGoodQty);
+        if ((missing > 0 || surplus > 0) && !l.remarks.trim()) {
+          throw new Error(`Remarks required for ${l.itemName} — count differs from system.`);
+        }
+        return {
+          itemTypeId: l.itemTypeId,
+          actualGoodQty: actual,
+          remarks: l.remarks.trim() || undefined,
+        };
+      });
       await finalizeStockCount({ lines: payload, notes: notes.trim() || undefined });
       setSuccess('Stock count saved. Inventory updated.');
       setLoaded(false);

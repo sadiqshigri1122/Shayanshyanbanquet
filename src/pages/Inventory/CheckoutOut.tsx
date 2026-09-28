@@ -3,6 +3,7 @@ import { ArrowUpCircle } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import ModalField, { modalFormClass, modalInputClass, modalSelectClass, modalTextareaClass } from '../../components/ModalField';
 import { getErrorMessage } from '../../utils/errorMessage';
+import { validatePositiveInt } from '../../utils/formValidation';
 
 export default function CheckoutOut() {
   const { inventoryItemTypes, inventoryStockBalances, createOutsideCheckout } = useApp();
@@ -33,6 +34,11 @@ export default function CheckoutOut() {
     setSuccess('');
     if (!form.itemTypeId || !form.issuedTo.trim() || !form.purpose.trim()) {
       setError('Item, who took it, and purpose are required.');
+      return;
+    }
+    const qtyError = validatePositiveInt(form.issuedQty, 'Issued quantity');
+    if (qtyError) {
+      setError(qtyError);
       return;
     }
     setSubmitting(true);

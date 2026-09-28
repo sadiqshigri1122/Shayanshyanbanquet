@@ -77,7 +77,11 @@ export default function EventDayReport() {
   const handleAddItem = async () => {
     const amount = Number(itemForm.amount);
     if (!itemForm.particular.trim() || amount <= 0) return;
-    const guestCount = itemForm.guestCount.trim() ? parseInt(itemForm.guestCount, 10) : undefined;
+    const parsedGuestCount = itemForm.guestCount.trim() ? parseInt(itemForm.guestCount, 10) : undefined;
+    const guestCount =
+      parsedGuestCount !== undefined && Number.isFinite(parsedGuestCount) && parsedGuestCount > 0
+        ? parsedGuestCount
+        : undefined;
     if (await addBookingServiceItem(booking.id, itemForm.particular, amount, currentUser.name, guestCount)) {
       setShowAddItem(false);
       setItemForm({ particular: '', amount: '', guestCount: '' });

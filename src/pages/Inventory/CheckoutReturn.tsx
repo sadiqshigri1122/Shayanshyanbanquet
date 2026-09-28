@@ -3,6 +3,7 @@ import { ArrowDownCircle, CheckCircle2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import ModalField, { modalFormClass, modalInputClass, modalTextareaClass } from '../../components/ModalField';
 import { getErrorMessage } from '../../utils/errorMessage';
+import { validateNonNegativeInt } from '../../utils/formValidation';
 import type { InventoryCheckout } from '../../types';
 
 export default function CheckoutReturn() {
@@ -53,9 +54,36 @@ export default function CheckoutReturn() {
     if (!selectedId) return;
     setError('');
     setSuccess('');
+
+    for (const [value, label] of [
+      [form.returnedQty, 'Returned quantity'],
+      [form.missingQty, 'Missing quantity'],
+      [form.damagedQty, 'Damaged quantity'],
+    ] as const) {
+      const qtyError = validateNonNegativeInt(value, label);
+      if (qtyError) {
+        setError(qtyError);
+        return;
+      }
+    }
+
+    if (totalEntered !== outstanding) {
+      setError(`Return must account for all ${outstanding} outstanding item(s).`);
+      return;
+    }
+
+    if ((form.missingQty > 0 || form.damagedQty > 0) && !form.returnRemarks.trim()) {
+      setError('Remarks are required when reporting missing or damaged items.');
+      return;
+    }
+
     setSubmitting(true);
     try {
-      const result = await returnOutsideCheckout(selectedId, form);
+      const result = await returnOutsideCheckout(selectedId, {
+        ...form,
+        returnRemarks: form.returnRemarks.trim() || undefined,
+        returnedBy: form.returnedBy.trim() || undefined,
+      });
       setLastResult(result);
       setSuccess('Return recorded. Inventory updated.');
       setSelectedId('');

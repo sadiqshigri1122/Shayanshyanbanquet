@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Search, Plus, AlertTriangle, CheckCircle2, XCircle, Save } from 'lucide-react';
 import { api } from '../../api/backend';
 import { useApp } from '../../context/AppContext';
+import { validatePhone } from '../../utils/formValidation';
 import type { Customer, Booking } from '../../types';
 import {
   formatCurrency, getDayName, needsDiscountApproval, searchCustomers,
@@ -99,10 +100,21 @@ export default function NewBooking() {
   };
 
   const handleCreateCustomer = async () => {
-    const c = await addCustomer(newCustomer);
+    const phoneError = validatePhone(newCustomer.phone);
+    if (phoneError) {
+      setError(phoneError);
+      return;
+    }
+    const c = await addCustomer({
+      ...newCustomer,
+      name: newCustomer.name.trim(),
+      phone: newCustomer.phone.trim(),
+      address: newCustomer.address.trim(),
+    });
     setSelectedCustomer(c);
     setShowNewCustomer(false);
     setCustomerSearch(c.name);
+    setError('');
   };
 
   const handleSave = async () => {

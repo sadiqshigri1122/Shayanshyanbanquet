@@ -3,6 +3,7 @@ import { AlertTriangle } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import ModalField, { modalFormClass, modalInputClass, modalSelectClass, modalTextareaClass } from '../../components/ModalField';
 import { getErrorMessage } from '../../utils/errorMessage';
+import { validatePositiveInt } from '../../utils/formValidation';
 
 export default function RecordAdjustment() {
   const { inventoryItemTypes, inventoryStockBalances, recordMissingOrDamaged } = useApp();
@@ -33,6 +34,11 @@ export default function RecordAdjustment() {
     setSuccess('');
     if (!form.itemTypeId || !form.remarks.trim()) {
       setError('Item and remarks are required.');
+      return;
+    }
+    const qtyError = validatePositiveInt(form.quantity);
+    if (qtyError) {
+      setError(qtyError);
       return;
     }
     setSubmitting(true);

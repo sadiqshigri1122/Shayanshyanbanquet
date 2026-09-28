@@ -1,15 +1,27 @@
 import { useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { validateEmailOptional } from '../../utils/formValidation';
 
 export default function AdminSettings() {
   const { settings, updateSettings } = useApp();
   const [form, setForm] = useState(settings);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSave = async () => {
-    await updateSettings(form);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setError('');
+    const emailError = validateEmailOptional(form.companyEmail);
+    if (emailError) {
+      setError(emailError);
+      return;
+    }
+    try {
+      await updateSettings({ ...form, companyEmail: form.companyEmail.trim() });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch {
+      setError('Could not save settings. Check company email format.');
+    }
   };
 
   return (
@@ -35,6 +47,7 @@ export default function AdminSettings() {
           <textarea value={form.termsAndConditions} onChange={(e) => setForm({ ...form, termsAndConditions: e.target.value })} rows={8} className="w-full border rounded-lg px-3 py-2 text-sm" />
         </div>
 
+        {error && <p className="text-danger text-sm">{error}</p>}
         <button onClick={handleSave} className="btn-primary !px-6 !py-2.5 !rounded-lg">
           {saved ? 'Saved!' : 'Save Settings'}
         </button>

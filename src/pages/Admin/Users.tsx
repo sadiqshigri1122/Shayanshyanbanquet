@@ -91,6 +91,14 @@ export default function AdminUsers() {
   };
 
   const handleCreate = async () => {
+    if (!form.name.trim()) {
+      setError('Name is required.');
+      return;
+    }
+    if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      setError('Enter a valid email address.');
+      return;
+    }
     if (form.password.length < 8) {
       setError('Password must be at least 8 characters.');
       return;

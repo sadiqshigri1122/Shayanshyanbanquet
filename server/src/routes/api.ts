@@ -757,6 +757,17 @@ apiRouter.post(
         returnRemarks: z.string().max(1000).optional(),
         returnedBy: z.string().max(200).optional(),
       })
+      .superRefine((data, ctx) => {
+        const missing = data.missingQty ?? 0;
+        const damaged = data.damagedQty ?? 0;
+        if ((missing > 0 || damaged > 0) && !data.returnRemarks?.trim()) {
+          ctx.addIssue({
+            code: 'custom',
+            message: 'Remarks are required when reporting missing or damaged items.',
+            path: ['returnRemarks'],
+          });
+        }
+      })
       .parse(req.body);
     return returnOutsideCheckout({ checkoutId: paramId(req), ...body }, actorName(req));
   }),

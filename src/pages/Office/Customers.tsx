@@ -6,6 +6,7 @@ import { useDashboard } from '../../context/DashboardContext';
 import Modal from '../../components/Modal';
 import ModalField, { modalFormClass, modalInputClass } from '../../components/ModalField';
 import { staffBookingStatus } from '../../utils/staffLabels';
+import { validateEmailOptional, validatePhone } from '../../utils/formValidation';
 
 export default function Customers() {
   const { customers, bookings, addCustomer } = useApp();
@@ -14,6 +15,7 @@ export default function Customers() {
   const [search, setSearch] = useState('');
   const [showNew, setShowNew] = useState(false);
   const [form, setForm] = useState({ name: '', phone: '', cnic: '', address: '', fatherHusbandName: '', email: '' });
+  const [formError, setFormError] = useState('');
 
   const filtered = customers.filter(
     (c) =>
@@ -26,10 +28,35 @@ export default function Customers() {
   const getCustomerBookings = (customerId: string) =>
     bookings.filter((b) => b.customer.id === customerId);
 
-  const handleCreate = () => {
-    addCustomer(form);
-    setShowNew(false);
-    setForm({ name: '', phone: '', cnic: '', address: '', fatherHusbandName: '', email: '' });
+  const handleCreate = async () => {
+    setFormError('');
+    if (!form.name.trim() || !form.address.trim()) {
+      setFormError('Name and address are required.');
+      return;
+    }
+    const phoneError = validatePhone(form.phone);
+    if (phoneError) {
+      setFormError(phoneError);
+      return;
+    }
+    const emailError = validateEmailOptional(form.email);
+    if (emailError) {
+      setFormError(emailError);
+      return;
+    }
+    try {
+      await addCustomer({
+        ...form,
+        name: form.name.trim(),
+        phone: form.phone.trim(),
+        address: form.address.trim(),
+        email: form.email.trim() || undefined,
+      });
+      setShowNew(false);
+      setForm({ name: '', phone: '', cnic: '', address: '', fatherHusbandName: '', email: '' });
+    } catch {
+      setFormError('Could not create customer. Check phone and email format.');
+    }
   };
 
   return (
@@ -103,6 +130,7 @@ export default function Customers() {
             <ModalField label="Email" hint="Optional">
               <input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className={modalInputClass} />
             </ModalField>
+            {formError && <p className="text-danger text-sm">{formError}</p>}
             <button onClick={handleCreate} disabled={!form.name || !form.phone || !form.address} className="btn-primary w-full !py-2.5 !rounded-lg disabled:opacity-50">Create</button>
           </div>
         </Modal>
