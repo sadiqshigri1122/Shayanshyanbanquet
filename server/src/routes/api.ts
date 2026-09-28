@@ -617,14 +617,23 @@ apiRouter.post(
   handle(async (req) => {
     const body = z
       .object({
-        itemName: z.string().min(1).max(200),
-        category: z.string().min(1).max(100),
+        itemName: z.string().min(1).max(200).optional(),
+        category: z.string().min(1).max(100).optional(),
         quantity: z.number().int().min(1).max(10000),
         unit: z.string().max(50).optional(),
         notes: z.string().max(1000).optional(),
         supplier: z.string().max(200).optional(),
         purchaseReference: z.string().max(100).optional(),
-        itemTypeId: z.string().optional(),
+        itemTypeId: z.string().min(1).optional(),
+      })
+      .superRefine((data, ctx) => {
+        if (data.itemTypeId) return;
+        if (!data.itemName?.trim()) {
+          ctx.addIssue({ code: 'custom', message: 'Item name is required.', path: ['itemName'] });
+        }
+        if (!data.category?.trim()) {
+          ctx.addIssue({ code: 'custom', message: 'Category is required.', path: ['category'] });
+        }
       })
       .parse(req.body);
     if (body.itemTypeId) {
@@ -638,7 +647,18 @@ apiRouter.post(
         actorName(req),
       );
     }
-    return addInventoryStock(body, actorName(req));
+    return addInventoryStock(
+      {
+        itemName: body.itemName!.trim(),
+        category: body.category!.trim(),
+        quantity: body.quantity,
+        unit: body.unit,
+        notes: body.notes,
+        supplier: body.supplier,
+        purchaseReference: body.purchaseReference,
+      },
+      actorName(req),
+    );
   }),
 );
 
