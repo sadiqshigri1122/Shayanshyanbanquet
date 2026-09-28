@@ -43,7 +43,10 @@ export default function Reports() {
 
   const handlePrint = () => {
     setShowPreview(true);
-    requestAnimationFrame(() => printDocument('banquet-report'));
+    // Wait for React to mount preview before cloning the report for print.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => printDocument('banquet-report'));
+    });
   };
 
   const handleDownload = () => {

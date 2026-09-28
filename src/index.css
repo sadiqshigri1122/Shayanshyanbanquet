@@ -487,6 +487,11 @@
   font-size: 11px;
 }
 
+/* Screen-only — content is cloned here momentarily before window.print() */
+.print-root-overlay {
+  display: none;
+}
+
 @media print {
   /* ── Hide app chrome (sidebar, header, nav, banners, controls) ── */
   .no-print,
@@ -534,29 +539,24 @@
     margin-bottom: 12px;
   }
 
-  /* Isolated documents (booking slip, receipt) */
-  body.printing-document * {
-    visibility: hidden;
+  /* Isolated documents — clone lives in #print-root-overlay appended to body */
+  body.printing-document #root {
+    display: none !important;
   }
 
-  body.printing-document #print-area,
-  body.printing-document #print-area *,
-  body.printing-document #banquet-report,
-  body.printing-document #banquet-report *,
-  body.printing-document #event-day-report,
-  body.printing-document #event-day-report * {
-    visibility: visible;
+  body.printing-document #print-root-overlay {
+    display: block !important;
+    visibility: visible !important;
+    position: static !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
   }
 
-  body.printing-document #print-area,
-  body.printing-document #banquet-report,
-  body.printing-document #event-day-report {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
+  body.printing-document #print-root-overlay,
+  body.printing-document #print-root-overlay * {
+    visibility: visible !important;
   }
 
   /* Modal — show document only, no overlay chrome */
