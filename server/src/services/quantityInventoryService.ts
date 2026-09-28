@@ -614,6 +614,62 @@ export async function listCheckouts(status?: string) {
   });
 }
 
+export async function bulkAddInventoryStock(
+  items: Array<{
+    itemName: string;
+    category: string;
+    quantity: number;
+    unit?: string;
+    notes?: string;
+    supplier?: string;
+    purchaseReference?: string;
+  }>,
+  createdBy: string,
+) {
+  if (!items.length) throw new ApiError('At least one row is required.', 400);
+  if (items.length > 500) throw new ApiError('Maximum 500 rows per bulk upload.', 400);
+
+  const results: Array<{
+    itemName: string;
+    quantity: number;
+    ok: boolean;
+    itemTypeId?: string;
+    error?: string;
+  }> = [];
+
+  for (const item of items) {
+    try {
+      const result = await addInventoryStock(item, createdBy);
+      results.push({
+        itemName: item.itemName,
+        quantity: item.quantity,
+        ok: true,
+        itemTypeId: result.itemTypeId,
+      });
+    } catch (err) {
+      results.push({
+        itemName: item.itemName,
+        quantity: item.quantity,
+        ok: false,
+        error: err instanceof ApiError ? err.message : 'Could not add stock.',
+      });
+    }
+  }
+
+  const created = results.filter((r) => r.ok).length;
+  const errors = results.filter((r) => !r.ok);
+
+  await appendAuditLog({
+    action: 'bulk_add_inventory_stock',
+    entity: 'inventory_item_type',
+    entityId: results.find((r) => r.itemTypeId)?.itemTypeId ?? 'bulk',
+    performedBy: createdBy,
+    details: `Bulk stock upload: ${created} succeeded, ${errors.length} failed`,
+  });
+
+  return { created, total: items.length, results, errors };
+}
+
 export async function getQuantityInventoryReports() {
   const [masterTypes, stockCounts, adjustments, checkouts] = await Promise.all([
     prisma.inventoryItemType.findMany({

@@ -72,9 +72,14 @@ export default function InventoryMaster() {
             Good, missing, damaged, and out quantities — total owned per item type
           </p>
         </div>
-        <Link to={path('/add-item')} className="btn-primary inline-flex items-center gap-2">
-          <Package size={16} /> Add Inventory
-        </Link>
+        <div className="flex gap-2">
+          <Link to={path('/add-item')} className="btn-primary inline-flex items-center gap-2">
+            <Package size={16} /> Add Inventory
+          </Link>
+          <Link to={path('/bulk-add')} className="btn-secondary inline-flex items-center gap-2">
+            Bulk Upload
+          </Link>
+        </div>
       </div>
 
       <div className="card flex flex-col sm:flex-row gap-3">

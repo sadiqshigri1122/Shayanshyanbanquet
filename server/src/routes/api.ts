@@ -71,6 +71,7 @@ import {
 import {
   addInventoryStock,
   addStockToExistingType,
+  bulkAddInventoryStock,
   createOutsideCheckout,
   finalizeStockCount,
   getQuantityInventoryReports,
@@ -147,6 +148,7 @@ apiRouter.get('/bookings/:id', ...staffRead, handle(async (req) => getBookingByI
 
 apiRouter.get(
   '/availability',
+  ...staffRead,
   handle(async (req) => {
     const venueId = String(req.query.venueId ?? '');
     const date = String(req.query.date ?? '');
@@ -637,6 +639,32 @@ apiRouter.post(
       );
     }
     return addInventoryStock(body, actorName(req));
+  }),
+);
+
+apiRouter.post(
+  '/inventory/stock/bulk',
+  ...inventoryWrite,
+  handle(async (req) => {
+    const body = z
+      .object({
+        items: z
+          .array(
+            z.object({
+              itemName: z.string().min(1).max(200),
+              category: z.string().min(1).max(100),
+              quantity: z.number().int().min(1).max(10000),
+              unit: z.string().max(50).optional(),
+              notes: z.string().max(1000).optional(),
+              supplier: z.string().max(200).optional(),
+              purchaseReference: z.string().max(100).optional(),
+            }),
+          )
+          .min(1)
+          .max(500),
+      })
+      .parse(req.body);
+    return bulkAddInventoryStock(body.items, actorName(req));
   }),
 );
 

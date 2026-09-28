@@ -14,7 +14,7 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: 'Active Users', value: users.filter((u) => u.isActive).length, icon: Users, path: '/admin/users' },
-          { label: 'Total Bookings', value: kpis.totalBookings, icon: BarChart3, path: '/admin/reports' },
+          { label: 'Total Bookings', value: kpis.totalBookings, icon: BarChart3, path: '/admin/bookings' },
           { label: 'Audit Logs', value: auditLogs.length, icon: Shield, path: '/admin/audit' },
           { label: 'Settings', value: 'Configure', icon: Settings, path: '/admin/settings' },
         ].map(({ label, value, icon: Icon, path }) => (

@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Search, Plus, AlertTriangle, CheckCircle2, XCircle, Save } from 'lucide-react';
+import { api } from '../../api/backend';
 import { useApp } from '../../context/AppContext';
 import type { Customer, Booking } from '../../types';
 import {
@@ -21,7 +22,7 @@ export default function NewBooking() {
   const location = useLocation();
   const prefillCustomer = (location.state as { customer?: Customer } | null)?.customer;
   const {
-    customers, venues, currentUser, settings,
+    customers, venues, currentUser, settings, apiMode,
     addCustomer, createBooking, isVenueAvailable, getNextSerial,
   } = useApp();
 
@@ -57,7 +58,37 @@ export default function NewBooking() {
     [customers, customerSearch],
   );
 
-  const available = functionDate ? isVenueAvailable(venueId, functionDate) : null;
+  const [available, setAvailable] = useState<boolean | null>(null);
+  const [checkingAvailability, setCheckingAvailability] = useState(false);
+
+  useEffect(() => {
+    if (!functionDate || !venueId) {
+      setAvailable(null);
+      return;
+    }
+
+    if (!apiMode) {
+      setAvailable(isVenueAvailable(venueId, functionDate));
+      return;
+    }
+
+    let cancelled = false;
+    setCheckingAvailability(true);
+    void api.checkAvailability(venueId, functionDate)
+      .then((result) => {
+        if (!cancelled) setAvailable(result.available);
+      })
+      .catch(() => {
+        if (!cancelled) setAvailable(isVenueAvailable(venueId, functionDate));
+      })
+      .finally(() => {
+        if (!cancelled) setCheckingAvailability(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [apiMode, venueId, functionDate, isVenueAvailable]);
   const { subtotal, grandTotal } = getPricingFromRows(pricingRows, discount, advancePaid);
   const discountWarning = needsDiscountApproval(subtotal, discount, settings.discountApprovalThresholdPercent);
   const bookingNumberPreview = `SB-${1000 + getNextSerial()}`;
@@ -195,7 +226,12 @@ export default function NewBooking() {
             <input type="date" value={functionDate} onChange={(e) => setFunctionDate(e.target.value)} min={new Date().toISOString().split('T')[0]} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
             {functionDate && <p className="text-xs text-muted mt-1">Day: <strong>{getDayName(functionDate)}</strong></p>}
           </div>
-          {available !== null && (
+          {functionDate && checkingAvailability && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-surface-alt text-muted">
+              Checking availability…
+            </div>
+          )}
+          {available !== null && !checkingAvailability && (
             <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-bold ${available ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'}`}>
               {available ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
               {available ? 'AVAILABLE' : 'NOT AVAILABLE'}

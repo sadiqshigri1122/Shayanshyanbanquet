@@ -31,6 +31,7 @@ import KitchenReports from './pages/Manager/KitchenReports';
 // Inventory
 import InventoryDashboard from './pages/Inventory/Dashboard';
 import AddItem from './pages/Inventory/AddItem';
+import BulkAddItems from './pages/Inventory/BulkAddItems';
 import StockCount from './pages/Inventory/StockCount';
 import RecordAdjustment from './pages/Inventory/RecordAdjustment';
 import CheckoutOut from './pages/Inventory/CheckoutOut';
@@ -81,6 +82,7 @@ function App() {
               <Route index element={<InventoryDashboard />} />
               <Route path="master" element={<InventoryMaster />} />
               <Route path="add-item" element={<AddItem />} />
+              <Route path="bulk-add" element={<BulkAddItems />} />
               <Route path="stock-count" element={<StockCount />} />
               <Route path="adjust" element={<RecordAdjustment />} />
               <Route path="checkout-out" element={<CheckoutOut />} />
@@ -116,6 +118,11 @@ function App() {
               <Route path="settings" element={<AdminSettings />} />
               <Route path="audit" element={<AuditLogs />} />
               <Route path="reports" element={<Reports />} />
+              <Route path="bookings" element={<Bookings />} />
+              <Route path="bookings/:id" element={<BookingDetail />} />
+              <Route path="calendar" element={<Calendar />} />
+              <Route path="customers" element={<Customers />} />
+              <Route path="payments" element={<Payments />} />
             </Route>
           </Route>
 

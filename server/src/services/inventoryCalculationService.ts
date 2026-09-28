@@ -254,16 +254,33 @@ export async function countAvailableSerialized(itemTypeId: string, location?: st
   return count;
 }
 
+async function countPendingEventReservations(itemTypeId: string): Promise<number> {
+  const lines = await prisma.eventInventoryLine.findMany({
+    where: {
+      itemTypeId,
+      status: { not: 'RECONCILED' },
+    },
+    select: { reservedQty: true, issuedQty: true },
+  });
+
+  return lines.reduce((sum, line) => sum + Math.max(0, line.reservedQty - line.issuedQty), 0);
+}
+
 export async function countAvailableQuantity(itemTypeId: string, location?: string): Promise<number> {
+  let goodQty = 0;
+
   if (location) {
     const balance = await prisma.inventoryStockBalance.findUnique({
       where: { itemTypeId_location: { itemTypeId, location: location.trim() } },
     });
-    return balance?.goodQty ?? 0;
+    goodQty = balance?.goodQty ?? 0;
+  } else {
+    const balances = await prisma.inventoryStockBalance.findMany({ where: { itemTypeId } });
+    goodQty = balances.reduce((sum, b) => sum + b.goodQty, 0);
   }
 
-  const balances = await prisma.inventoryStockBalance.findMany({ where: { itemTypeId } });
-  return balances.reduce((sum, b) => sum + b.goodQty, 0);
+  const pendingReservations = await countPendingEventReservations(itemTypeId);
+  return Math.max(0, goodQty - pendingReservations);
 }
 
 export async function getRecentMovements(limit = 20) {

@@ -263,6 +263,12 @@ export const api = {
       '/api/inventory/stock/add',
       { method: 'POST', body: JSON.stringify(body) },
     ),
+  bulkAddInventoryStock: (body: { items: unknown[] }) =>
+    request<{
+      created: number;
+      total: number;
+      errors: Array<{ itemName: string; quantity: number; error?: string }>;
+    }>('/api/inventory/stock/bulk', { method: 'POST', body: JSON.stringify(body) }),
   finalizeStockCount: (body: unknown) =>
     request<import('../types').InventoryStockCount>('/api/inventory/stock/count', {
       method: 'POST',

@@ -5,6 +5,10 @@ import { isUserRole, type UserRole } from '../lib/rbac.js';
 import { ApiError } from './bookingService.js';
 
 export async function backfillMissingPasswordHashes(): Promise<number> {
+  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_PASSWORD_BACKFILL !== 'true') {
+    return 0;
+  }
+
   const users = await prisma.user.findMany({ where: { passwordHash: null }, select: { id: true } });
   if (!users.length) return 0;
 

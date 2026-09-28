@@ -35,7 +35,9 @@ describe('staffRoutes', () => {
 
   it('rewrites cross-dashboard links to the active layout', () => {
     expect(resolveStaffLink('/office/bookings', 'manager')).toBe('/manager/bookings');
+    expect(resolveStaffLink('/office/bookings', 'admin')).toBe('/admin/bookings');
     expect(resolveStaffLink('/office/customers', 'manager')).toBe('/manager/customers');
+    expect(resolveStaffLink('/office/customers', 'admin')).toBe('/admin/customers');
     expect(resolveStaffLink('/manager/reports', 'admin')).toBe('/admin/reports');
     expect(resolveStaffLink('/manager/approvals', 'manager')).toBe('/manager/approvals');
     expect(resolveStaffLink('/office/event-day', 'manager')).toBe('/office/event-day');

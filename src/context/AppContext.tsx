@@ -247,6 +247,17 @@ interface AppContextType extends AppState {
     purchaseReference?: string;
     itemTypeId?: string;
   }) => Promise<{ itemTypeId: string; quantity: number }>;
+  bulkAddInventoryStock: (
+    items: Array<{
+      itemName: string;
+      category: string;
+      quantity: number;
+      unit?: string;
+      notes?: string;
+      supplier?: string;
+      purchaseReference?: string;
+    }>,
+  ) => Promise<{ created: number; total: number; errors: Array<{ itemName: string; error?: string }> }>;
   finalizeStockCount: (data: {
     lines: Array<{ itemTypeId: string; actualGoodQty: number; remarks?: string }>;
     notes?: string;
@@ -2359,6 +2370,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [clearActionError, refreshFromApi],
   );
 
+  const bulkAddInventoryStockFn = useCallback(
+    async (items: Parameters<AppContextType['bulkAddInventoryStock']>[0]) => {
+      if (!USE_API) throw new Error('Bulk upload requires API mode.');
+      clearActionError();
+      const result = await api.bulkAddInventoryStock({ items });
+      await refreshFromApi();
+      return result;
+    },
+    [clearActionError, refreshFromApi],
+  );
+
   const finalizeStockCountFn = useCallback(
     async (data: Parameters<AppContextType['finalizeStockCount']>[0]) => {
       if (!USE_API) throw new Error('Stock count requires API mode.');
@@ -2473,6 +2495,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     searchInventoryBySerial: searchInventoryBySerialFn,
     getInventoryMaster: getInventoryMasterFn,
     addInventoryStock: addInventoryStockFn,
+    bulkAddInventoryStock: bulkAddInventoryStockFn,
     finalizeStockCount: finalizeStockCountFn,
     recordMissingOrDamaged: recordMissingOrDamagedFn,
     createOutsideCheckout: createOutsideCheckoutFn,

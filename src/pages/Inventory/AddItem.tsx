@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { useDashboard } from '../../context/DashboardContext';
 import ModalField, { modalFormClass, modalInputClass, modalSelectClass, modalTextareaClass } from '../../components/ModalField';
@@ -78,6 +78,9 @@ export default function AddItem() {
         <p className="text-sm text-muted mt-1">
           Add items and quantities to your banquet inventory — chairs, tables, crockery, equipment, etc.
         </p>
+        <Link to={path('/bulk-add')} className="text-sm text-secondary font-semibold mt-2 inline-block">
+          Bulk upload many items via CSV →
+        </Link>
       </div>
 
       <div className="card flex gap-2">

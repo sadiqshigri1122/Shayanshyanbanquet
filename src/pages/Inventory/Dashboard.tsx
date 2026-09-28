@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import {
-  Package, ClipboardCheck, AlertTriangle, ArrowUpCircle, ArrowDownCircle, ShoppingCart, PlusCircle,
+  Package, ClipboardCheck, AlertTriangle, ArrowUpCircle, ArrowDownCircle, ShoppingCart, PlusCircle, Upload,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useDashboard } from '../../context/DashboardContext';
@@ -45,6 +45,7 @@ export default function InventoryDashboard() {
 
   const quickLinks = [
     { label: 'Add Inventory', icon: PlusCircle, path: path('/add-item') },
+    { label: 'Bulk Upload', icon: Upload, path: path('/bulk-add') },
     { label: 'Stock Count', icon: ClipboardCheck, path: path('/stock-count') },
     { label: 'Missing / Damaged', icon: AlertTriangle, path: path('/adjust') },
     { label: 'Check Out', icon: ArrowUpCircle, path: path('/checkout-out') },

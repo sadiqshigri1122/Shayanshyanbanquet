@@ -201,18 +201,20 @@ export async function reserveEventInventory(
       });
     });
   } else {
-    const available = await countAvailableQuantity(line.itemTypeId, input.location);
-    if (available < input.quantity) {
-      throw new ApiError(`Only ${available} unit(s) currently available.`, 400);
-    }
+    await prisma.$transaction(async (tx) => {
+      const available = await countAvailableQuantity(line.itemTypeId, input.location);
+      if (available < input.quantity) {
+        throw new ApiError(`Only ${available} unit(s) currently available.`, 400);
+      }
 
-    await prisma.eventInventoryLine.update({
-      where: { id: line.id },
-      data: {
-        reservedQty: line.reservedQty + input.quantity,
-        status: line.reservedQty + input.quantity >= line.requiredQty ? 'RESERVED' : 'REQUIRED',
-        updatedAt: ts,
-      },
+      await tx.eventInventoryLine.update({
+        where: { id: line.id },
+        data: {
+          reservedQty: line.reservedQty + input.quantity,
+          status: line.reservedQty + input.quantity >= line.requiredQty ? 'RESERVED' : 'REQUIRED',
+          updatedAt: ts,
+        },
+      });
     });
   }
 
@@ -566,24 +568,51 @@ export async function returnEventInventory(
       });
     });
   } else {
+    const eventLine = line;
+    const missingQty = input.missingQty ?? 0;
+    const damagedQty = input.damagedQty ?? 0;
+
     await prisma.$transaction(async (tx) => {
-      const balance = await tx.inventoryStockBalance.findFirst({
-        where: { itemTypeId: line.itemTypeId, location: toLocation },
-      });
-      if (balance) {
-        await tx.inventoryStockBalance.update({
-          where: { id: balance.id },
-          data: { goodQty: balance.goodQty + input.returnedQty, updatedAt: ts },
+      async function adjustBalanceAtLocation(
+        deltaGood: number,
+        deltaMissing: number,
+        deltaDamaged: number,
+      ) {
+        const balance = await tx.inventoryStockBalance.findFirst({
+          where: { itemTypeId: eventLine.itemTypeId, location: toLocation },
         });
-      } else {
+
+        if (balance) {
+          const nextGood = balance.goodQty + deltaGood;
+          const nextMissing = balance.missingQty + deltaMissing;
+          const nextDamaged = balance.damagedQty + deltaDamaged;
+          if (nextGood < 0 || nextMissing < 0 || nextDamaged < 0) {
+            throw new ApiError('Insufficient quantity for this return.', 400);
+          }
+          await tx.inventoryStockBalance.update({
+            where: { id: balance.id },
+            data: {
+              goodQty: nextGood,
+              missingQty: nextMissing,
+              damagedQty: nextDamaged,
+              updatedAt: ts,
+            },
+          });
+          return;
+        }
+
+        if (deltaGood < 0 || deltaMissing < 0 || deltaDamaged < 0) {
+          throw new ApiError('Insufficient quantity for this return.', 400);
+        }
+
         await tx.inventoryStockBalance.create({
           data: {
             id: `isb${Date.now()}${Math.random().toString(36).slice(2, 5)}`,
-            itemTypeId: line.itemTypeId,
+            itemTypeId: eventLine.itemTypeId,
             location: toLocation,
-            goodQty: input.returnedQty,
-            missingQty: 0,
-            damagedQty: 0,
+            goodQty: deltaGood,
+            missingQty: deltaMissing,
+            damagedQty: deltaDamaged,
             outQty: 0,
             updatedAt: ts,
           },
@@ -591,17 +620,18 @@ export async function returnEventInventory(
       }
 
       if (input.returnedQty > 0) {
+        await adjustBalanceAtLocation(input.returnedQty, 0, 0);
         await tx.inventoryQuantityMovement.create({
           data: {
             id: `iqm${Date.now()}${Math.random().toString(36).slice(2, 5)}`,
-            itemTypeId: line.itemTypeId,
+            itemTypeId: eventLine.itemTypeId,
             action: 'IN',
             quantity: input.returnedQty,
-            fromLocation: line.booking.venueName,
+            fromLocation: eventLine.booking.venueName,
             toLocation,
-            bookingId: line.bookingId,
-            reason: `Returned from event ${line.booking.bookingNumber}`,
-            reference: line.id,
+            bookingId: eventLine.bookingId,
+            reason: `Returned from event ${eventLine.booking.bookingNumber}`,
+            reference: eventLine.id,
             notes: input.notes?.trim() || null,
             createdBy,
             createdAt: ts,
@@ -609,13 +639,53 @@ export async function returnEventInventory(
         });
       }
 
-      const newReturned = line.returnedQty + input.returnedQty;
-      const newMissing = line.missingQty + (input.missingQty ?? 0);
-      const newDamaged = line.damagedQty + (input.damagedQty ?? 0);
-      const reconciled = newReturned + newMissing + newDamaged >= line.issuedQty;
+      if (missingQty > 0) {
+        await adjustBalanceAtLocation(0, missingQty, 0);
+        await tx.inventoryQuantityMovement.create({
+          data: {
+            id: `iqm${Date.now()}${Math.random().toString(36).slice(2, 5)}`,
+            itemTypeId: eventLine.itemTypeId,
+            action: 'MARK_MISSING',
+            quantity: missingQty,
+            fromLocation: eventLine.booking.venueName,
+            toLocation: 'Missing',
+            bookingId: eventLine.bookingId,
+            reason: `Missing after event ${eventLine.booking.bookingNumber}`,
+            reference: eventLine.id,
+            notes: input.notes?.trim() || null,
+            createdBy,
+            createdAt: ts,
+          },
+        });
+      }
+
+      if (damagedQty > 0) {
+        await adjustBalanceAtLocation(0, 0, damagedQty);
+        await tx.inventoryQuantityMovement.create({
+          data: {
+            id: `iqm${Date.now()}${Math.random().toString(36).slice(2, 5)}`,
+            itemTypeId: eventLine.itemTypeId,
+            action: 'MARK_DAMAGED',
+            quantity: damagedQty,
+            fromLocation: eventLine.booking.venueName,
+            toLocation: 'Damaged',
+            bookingId: eventLine.bookingId,
+            reason: `Damaged after event ${eventLine.booking.bookingNumber}`,
+            reference: eventLine.id,
+            notes: input.notes?.trim() || null,
+            createdBy,
+            createdAt: ts,
+          },
+        });
+      }
+
+      const newReturned = eventLine.returnedQty + input.returnedQty;
+      const newMissing = eventLine.missingQty + missingQty;
+      const newDamaged = eventLine.damagedQty + damagedQty;
+      const reconciled = newReturned + newMissing + newDamaged >= eventLine.issuedQty;
 
       await tx.eventInventoryLine.update({
-        where: { id: line.id },
+        where: { id: eventLine.id },
         data: {
           returnedQty: newReturned,
           missingQty: newMissing,

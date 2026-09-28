@@ -30,23 +30,26 @@ export async function listKitchenStockUsage() {
   return prisma.kitchenStockUsage.findMany({ orderBy: { usedAt: 'desc' } });
 }
 
-async function upsertKitchenStockFromPurchase(input: {
-  item: string;
-  category: string;
-  unit: string;
-  quantity: number;
-  purchaseDate: string;
-  unitCost: number;
-}) {
+async function upsertKitchenStockFromPurchase(
+  input: {
+    item: string;
+    category: string;
+    unit: string;
+    quantity: number;
+    purchaseDate: string;
+    unitCost: number;
+  },
+  tx: Pick<typeof prisma, 'kitchenStock'> = prisma,
+) {
   const ts = nowIso();
   const normalizedItem = input.item.trim();
-  const existing = await prisma.kitchenStock.findUnique({ where: { item: normalizedItem } });
+  const existing = await tx.kitchenStock.findUnique({ where: { item: normalizedItem } });
 
   if (existing) {
     if (existing.unit !== input.unit.trim()) {
       throw new ApiError(`Unit mismatch for "${normalizedItem}". Existing unit is ${existing.unit}.`, 400);
     }
-    return prisma.kitchenStock.update({
+    return tx.kitchenStock.update({
       where: { item: normalizedItem },
       data: {
         currentQuantity: existing.currentQuantity + input.quantity,
@@ -58,7 +61,7 @@ async function upsertKitchenStockFromPurchase(input: {
     });
   }
 
-  return prisma.kitchenStock.create({
+  return tx.kitchenStock.create({
     data: {
       id: newKitchenStockId(),
       item: normalizedItem,
@@ -96,33 +99,40 @@ export async function createKitchenPurchase(
   const ts = nowIso();
   const id = newKitchenPurchaseId();
 
-  const purchase = await prisma.kitchenPurchase.create({
-    data: {
-      id,
-      purchaseDate: input.purchaseDate,
-      item: input.item.trim(),
-      category: input.category.trim(),
-      quantity: input.quantity,
-      unit: input.unit.trim(),
-      unitCost: input.unitCost,
-      totalCost,
-      supplier: input.supplier.trim(),
-      purchasedBy: input.purchasedBy.trim(),
-      receivedBy: input.receivedBy.trim(),
-      invoiceNumber: input.invoiceNumber?.trim() || null,
-      notes: input.notes?.trim() || null,
-      createdBy,
-      createdAt: ts,
-    },
-  });
+  const purchase = await prisma.$transaction(async (tx) => {
+    const created = await tx.kitchenPurchase.create({
+      data: {
+        id,
+        purchaseDate: input.purchaseDate,
+        item: input.item.trim(),
+        category: input.category.trim(),
+        quantity: input.quantity,
+        unit: input.unit.trim(),
+        unitCost: input.unitCost,
+        totalCost,
+        supplier: input.supplier.trim(),
+        purchasedBy: input.purchasedBy.trim(),
+        receivedBy: input.receivedBy.trim(),
+        invoiceNumber: input.invoiceNumber?.trim() || null,
+        notes: input.notes?.trim() || null,
+        createdBy,
+        createdAt: ts,
+      },
+    });
 
-  await upsertKitchenStockFromPurchase({
-    item: input.item,
-    category: input.category,
-    unit: input.unit,
-    quantity: input.quantity,
-    purchaseDate: input.purchaseDate,
-    unitCost: input.unitCost,
+    await upsertKitchenStockFromPurchase(
+      {
+        item: input.item,
+        category: input.category,
+        unit: input.unit,
+        quantity: input.quantity,
+        purchaseDate: input.purchaseDate,
+        unitCost: input.unitCost,
+      },
+      tx,
+    );
+
+    return created;
   });
 
   await appendAuditLog({

@@ -5,7 +5,7 @@ import {
   ChevronLeft, ChevronRight, Bell, Search, Settings, Menu,
   ClipboardList, PlusCircle, CalendarCheck,
   CheckCircle2, BarChart3, Shield, DollarSign, LogOut,
-  Package, ArrowDownCircle, ArrowUpCircle, History, ShoppingCart, Warehouse, ChefHat,
+  Package, ArrowDownCircle, ArrowUpCircle, History, ShoppingCart, Warehouse, ChefHat, Upload,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { DashboardProvider } from '../context/DashboardContext';
@@ -27,6 +27,7 @@ const navByRole: Record<DashboardRole, { label: string; icon: typeof LayoutDashb
     { label: 'Dashboard', icon: LayoutDashboard, path: '/inventory' },
     { label: 'Inventory Master', icon: Package, path: '/inventory/master' },
     { label: 'Add Inventory', icon: PlusCircle, path: '/inventory/add-item' },
+    { label: 'Bulk Upload', icon: Upload, path: '/inventory/bulk-add' },
     { label: 'Stock Count', icon: ClipboardList, path: '/inventory/stock-count' },
     { label: 'Missing / Damaged', icon: Package, path: '/inventory/adjust' },
     { label: 'Check Out (Outside)', icon: ArrowUpCircle, path: '/inventory/checkout-out' },
@@ -55,6 +56,10 @@ const navByRole: Record<DashboardRole, { label: string; icon: typeof LayoutDashb
     { label: 'Settings', icon: Settings, path: '/admin/settings' },
     { label: 'Audit Logs', icon: Shield, path: '/admin/audit' },
     { label: 'Reports', icon: BarChart3, path: '/admin/reports' },
+    { label: 'All Bookings', icon: ClipboardList, path: '/admin/bookings' },
+    { label: 'Calendar', icon: CalendarDays, path: '/admin/calendar' },
+    { label: 'Customers', icon: Users, path: '/admin/customers' },
+    { label: 'Payments', icon: CreditCard, path: '/admin/payments' },
   ],
 };
 

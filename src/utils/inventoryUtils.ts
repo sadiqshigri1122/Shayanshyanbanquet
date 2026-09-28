@@ -401,6 +401,99 @@ export function parseInventoryCsv(
   return { rows, parseErrors };
 }
 
+export interface QuantityBulkRow {
+  itemName: string;
+  category: string;
+  quantity: number;
+  unit?: string;
+  supplier?: string;
+  notes?: string;
+  purchaseReference?: string;
+}
+
+export interface ParsedQuantityBulkRow extends QuantityBulkRow {
+  rowNumber: number;
+  errors: string[];
+}
+
+const QTY_CSV_HEADERS = ['itemName', 'category', 'quantity', 'unit', 'supplier', 'notes', 'purchaseReference'] as const;
+
+export function buildQuantityInventoryTemplateCsv(): string {
+  const sample = [
+    'Banquet Chair',
+    INVENTORY_CATEGORIES[4],
+    '100',
+    'unit',
+    'Local Supplier',
+    'Main hall chairs',
+    'PO-2026-001',
+  ];
+  return [QTY_CSV_HEADERS.join(','), sample.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')].join('\r\n');
+}
+
+export function parseQuantityInventoryCsv(text: string): { rows: ParsedQuantityBulkRow[]; parseErrors: string[] } {
+  const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const parseErrors: string[] = [];
+  if (lines.length === 0) return { rows: [], parseErrors: ['File is empty.'] };
+
+  const headerFields = parseCsvLine(lines[0]).map((h) => h.toLowerCase().replace(/\s+/g, ''));
+  const headerMap: Record<string, number> = {};
+  headerFields.forEach((h, i) => {
+    if (h === 'itemname' || h === 'name') headerMap.itemName = i;
+    if (h === 'category') headerMap.category = i;
+    if (h === 'quantity' || h === 'qty') headerMap.quantity = i;
+    if (h === 'unit') headerMap.unit = i;
+    if (h === 'supplier') headerMap.supplier = i;
+    if (h === 'notes') headerMap.notes = i;
+    if (h === 'purchasereference' || h === 'reference') headerMap.purchaseReference = i;
+  });
+
+  if (headerMap.itemName === undefined || headerMap.quantity === undefined) {
+    return {
+      rows: [],
+      parseErrors: ['CSV must include columns: itemName and quantity (category recommended).'],
+    };
+  }
+
+  const validCategories = new Set<string>(INVENTORY_CATEGORIES);
+  const rows: ParsedQuantityBulkRow[] = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const fields = parseCsvLine(lines[i]);
+    const rowNumber = i + 1;
+    const get = (key: string) => (headerMap[key] !== undefined ? (fields[headerMap[key]!] ?? '').trim() : '');
+
+    const itemName = get('itemName');
+    const category = get('category') || INVENTORY_CATEGORIES[INVENTORY_CATEGORIES.length - 1];
+    const quantityRaw = get('quantity');
+    const quantity = Number(quantityRaw);
+    const unit = get('unit') || undefined;
+    const supplier = get('supplier') || undefined;
+    const notes = get('notes') || undefined;
+    const purchaseReference = get('purchaseReference') || undefined;
+
+    const errors: string[] = [];
+    if (!itemName) errors.push('Item name is required.');
+    if (!quantityRaw || Number.isNaN(quantity) || quantity < 1) errors.push('Quantity must be a number ≥ 1.');
+    if (quantity > 10000) errors.push('Quantity cannot exceed 10,000.');
+    if (category && !validCategories.has(category)) errors.push(`Invalid category: ${category}`);
+
+    rows.push({
+      rowNumber,
+      itemName,
+      category,
+      quantity: Number.isNaN(quantity) ? 0 : quantity,
+      unit,
+      supplier,
+      notes,
+      purchaseReference,
+      errors,
+    });
+  }
+
+  return { rows, parseErrors };
+}
+
 export function filterByDateRange(
   dateStr: string,
   range: 'today' | 'week' | 'month' | 'custom',
