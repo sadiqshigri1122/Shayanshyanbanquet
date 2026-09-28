@@ -55,6 +55,9 @@ export interface ApiAppState {
   inventoryItemTypes: import('../types').InventoryItemType[];
   inventoryStockBalances: import('../types').InventoryStockBalance[];
   inventoryQuantityMovements: import('../types').InventoryQuantityMovement[];
+  inventoryStockCounts: import('../types').InventoryStockCount[];
+  inventoryAdjustments: import('../types').InventoryAdjustment[];
+  inventoryCheckouts: import('../types').InventoryCheckout[];
   eventInventoryLines: import('../types').EventInventoryLine[];
   kitchenPurchases: import('../types').KitchenPurchase[];
   kitchenStock: import('../types').KitchenStock[];
@@ -255,6 +258,33 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+  addInventoryStock: (body: unknown) =>
+    request<{ itemTypeId: string; itemName?: string; quantity: number }>(
+      '/api/inventory/stock/add',
+      { method: 'POST', body: JSON.stringify(body) },
+    ),
+  finalizeStockCount: (body: unknown) =>
+    request<import('../types').InventoryStockCount>('/api/inventory/stock/count', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  recordMissingOrDamaged: (body: unknown) =>
+    request<import('../types').InventoryAdjustment>('/api/inventory/stock/adjust', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  createOutsideCheckout: (body: unknown) =>
+    request<import('../types').InventoryCheckout>('/api/inventory/checkout', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  returnOutsideCheckout: (checkoutId: string, body: unknown) =>
+    request<import('../types').InventoryCheckout & { reconciliation?: Record<string, unknown> }>(
+      `/api/inventory/checkout/${encodeURIComponent(checkoutId)}/return`,
+      { method: 'POST', body: JSON.stringify(body) },
+    ),
+  getQuantityInventoryReports: () =>
+    request<Record<string, unknown>>('/api/inventory/reports/quantity'),
   createKitchenPurchase: (body: unknown) =>
     request<import('../types').KitchenPurchase>('/api/kitchen/purchases', {
       method: 'POST',

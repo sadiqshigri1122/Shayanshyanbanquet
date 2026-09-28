@@ -282,7 +282,10 @@ export type InventoryAction =
   | 'RESERVE'
   | 'ISSUE'
   | 'RETURN'
-  | 'ADJUSTMENT';
+  | 'ADJUSTMENT'
+  | 'COUNT_ADJUST'
+  | 'CHECKOUT_OUT'
+  | 'CHECKOUT_RETURN';
 
 export type EventInventoryLineStatus = 'REQUIRED' | 'RESERVED' | 'ISSUED' | 'RETURNED' | 'RECONCILED';
 
@@ -303,8 +306,71 @@ export interface InventoryStockBalance {
   id: string;
   itemTypeId: string;
   location: string;
+  goodQty: number;
+  missingQty: number;
+  damagedQty: number;
+  outQty: number;
+  /** @deprecated use goodQty */
   quantity: number;
   updatedAt: string;
+}
+
+export interface InventoryStockCountLine {
+  id: string;
+  stockCountId: string;
+  itemTypeId: string;
+  itemName: string;
+  systemGoodQty: number;
+  actualGoodQty: number;
+  missingQty: number;
+  surplusQty: number;
+  remarks?: string;
+}
+
+export interface InventoryStockCount {
+  id: string;
+  countedAt: string;
+  countedBy: string;
+  notes?: string;
+  status: string;
+  createdAt: string;
+  lines?: InventoryStockCountLine[];
+}
+
+export interface InventoryAdjustment {
+  id: string;
+  itemTypeId: string;
+  itemName: string;
+  type: 'MISSING' | 'DAMAGED';
+  quantity: number;
+  remarks: string;
+  adjustedBy: string;
+  adjustedAt: string;
+  createdAt: string;
+}
+
+export interface InventoryCheckout {
+  id: string;
+  itemTypeId: string;
+  itemName: string;
+  issuedTo: string;
+  issuedQty: number;
+  issuedAt: string;
+  purpose: string;
+  expectedReturnAt?: string;
+  returnedQty: number;
+  missingQty: number;
+  damagedQty: number;
+  returnedAt?: string;
+  returnedBy?: string;
+  returnRemarks?: string;
+  status: 'OPEN' | 'COMPLETED';
+  notes?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  outstanding: number;
+  isComplete: boolean;
 }
 
 export interface InventoryQuantityMovement {

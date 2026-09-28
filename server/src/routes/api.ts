@@ -68,6 +68,18 @@ import {
   recordKitchenStockUsage,
   updateKitchenStockThreshold,
 } from '../services/kitchenService.js';
+import {
+  addInventoryStock,
+  addStockToExistingType,
+  createOutsideCheckout,
+  finalizeStockCount,
+  getQuantityInventoryReports,
+  listAdjustments,
+  listCheckouts,
+  listStockCounts,
+  recordMissingOrDamaged,
+  returnOutsideCheckout,
+} from '../services/quantityInventoryService.js';
 
 export const apiRouter = Router();
 
@@ -567,6 +579,138 @@ apiRouter.get(
   handle(async (req) => {
     const bookingId = typeof req.query.bookingId === 'string' ? req.query.bookingId : undefined;
     return getEventInventoryReport(bookingId);
+  }),
+);
+
+apiRouter.get(
+  '/inventory/reports/quantity',
+  ...inventoryRead,
+  handle(async () => getQuantityInventoryReports()),
+);
+
+apiRouter.get(
+  '/inventory/stock-counts',
+  ...inventoryRead,
+  handle(async () => listStockCounts()),
+);
+
+apiRouter.get(
+  '/inventory/adjustments',
+  ...inventoryRead,
+  handle(async () => listAdjustments()),
+);
+
+apiRouter.get(
+  '/inventory/checkouts',
+  ...inventoryRead,
+  handle(async (req) => {
+    const status = typeof req.query.status === 'string' ? req.query.status : undefined;
+    return listCheckouts(status);
+  }),
+);
+
+apiRouter.post(
+  '/inventory/stock/add',
+  ...inventoryWrite,
+  handle(async (req) => {
+    const body = z
+      .object({
+        itemName: z.string().min(1).max(200),
+        category: z.string().min(1).max(100),
+        quantity: z.number().int().min(1).max(10000),
+        unit: z.string().max(50).optional(),
+        notes: z.string().max(1000).optional(),
+        supplier: z.string().max(200).optional(),
+        purchaseReference: z.string().max(100).optional(),
+        itemTypeId: z.string().optional(),
+      })
+      .parse(req.body);
+    if (body.itemTypeId) {
+      return addStockToExistingType(
+        {
+          itemTypeId: body.itemTypeId,
+          quantity: body.quantity,
+          notes: body.notes,
+          reference: body.purchaseReference,
+        },
+        actorName(req),
+      );
+    }
+    return addInventoryStock(body, actorName(req));
+  }),
+);
+
+apiRouter.post(
+  '/inventory/stock/count',
+  ...inventoryWrite,
+  handle(async (req) => {
+    const body = z
+      .object({
+        lines: z
+          .array(
+            z.object({
+              itemTypeId: z.string().min(1),
+              actualGoodQty: z.number().int().min(0),
+              remarks: z.string().max(1000).optional(),
+            }),
+          )
+          .min(1),
+        notes: z.string().max(1000).optional(),
+        countedAt: z.string().optional(),
+      })
+      .parse(req.body);
+    return finalizeStockCount(body, actorName(req));
+  }),
+);
+
+apiRouter.post(
+  '/inventory/stock/adjust',
+  ...inventoryWrite,
+  handle(async (req) => {
+    const body = z
+      .object({
+        itemTypeId: z.string().min(1),
+        type: z.enum(['MISSING', 'DAMAGED']),
+        quantity: z.number().int().min(1),
+        remarks: z.string().min(1).max(1000),
+      })
+      .parse(req.body);
+    return recordMissingOrDamaged(body, actorName(req));
+  }),
+);
+
+apiRouter.post(
+  '/inventory/checkout',
+  ...inventoryWrite,
+  handle(async (req) => {
+    const body = z
+      .object({
+        itemTypeId: z.string().min(1),
+        issuedTo: z.string().min(1).max(200),
+        issuedQty: z.number().int().min(1),
+        purpose: z.string().min(1).max(500),
+        expectedReturnAt: z.string().optional(),
+        notes: z.string().max(1000).optional(),
+      })
+      .parse(req.body);
+    return createOutsideCheckout(body, actorName(req));
+  }),
+);
+
+apiRouter.post(
+  '/inventory/checkout/:id/return',
+  ...inventoryWrite,
+  handle(async (req) => {
+    const body = z
+      .object({
+        returnedQty: z.number().int().min(0),
+        missingQty: z.number().int().min(0).optional(),
+        damagedQty: z.number().int().min(0).optional(),
+        returnRemarks: z.string().max(1000).optional(),
+        returnedBy: z.string().max(200).optional(),
+      })
+      .parse(req.body);
+    return returnOutsideCheckout({ checkoutId: paramId(req), ...body }, actorName(req));
   }),
 );
 

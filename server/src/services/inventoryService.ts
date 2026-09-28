@@ -65,7 +65,7 @@ export async function findOrCreateItemType(
       name,
       category,
       unit: input.unit?.trim() || 'unit',
-      serialTracking: input.serialTracking ?? true,
+      serialTracking: input.serialTracking ?? false,
       defaultLocation: input.defaultLocation ? validateLocation(input.defaultLocation) : null,
       notes: input.notes?.trim() || null,
       createdBy,
@@ -241,7 +241,7 @@ export async function createInventoryItemsByQuantity(
     throw new ApiError('Quantity must be between 1 and 500.', 400);
   }
 
-  const serialTracking = input.serialTracking ?? true;
+  const serialTracking = input.serialTracking ?? false;
   const location = validateLocation(input.location);
   const category = validateCategory(input.category);
 
@@ -758,7 +758,7 @@ export async function createQuantityStockIn(
     if (balance) {
       await tx.inventoryStockBalance.update({
         where: { id: balance.id },
-        data: { quantity: balance.quantity + input.quantity, updatedAt: ts },
+        data: { goodQty: balance.goodQty + input.quantity, updatedAt: ts },
       });
     } else {
       await tx.inventoryStockBalance.create({
@@ -766,7 +766,10 @@ export async function createQuantityStockIn(
           id: newStockBalanceId(),
           itemTypeId: itemType.id,
           location,
-          quantity: input.quantity,
+          goodQty: input.quantity,
+          missingQty: 0,
+          damagedQty: 0,
+          outQty: 0,
           updatedAt: ts,
         },
       });
@@ -832,16 +835,16 @@ export async function recordQuantityStockOut(
     const balance = await tx.inventoryStockBalance.findUnique({
       where: { itemTypeId_location: { itemTypeId: itemType.id, location } },
     });
-    if (!balance || balance.quantity < input.quantity) {
+    if (!balance || balance.goodQty < input.quantity) {
       throw new ApiError(
-        `Insufficient stock at ${location}. Available: ${balance?.quantity ?? 0}.`,
+        `Insufficient stock at ${location}. Available: ${balance?.goodQty ?? 0}.`,
         400,
       );
     }
 
     await tx.inventoryStockBalance.update({
       where: { id: balance.id },
-      data: { quantity: balance.quantity - input.quantity, updatedAt: ts },
+      data: { goodQty: balance.goodQty - input.quantity, updatedAt: ts },
     });
 
     await tx.inventoryQuantityMovement.create({
@@ -899,16 +902,16 @@ export async function recordQuantityTransfer(
     const fromBalance = await tx.inventoryStockBalance.findUnique({
       where: { itemTypeId_location: { itemTypeId: itemType.id, location: fromLocation } },
     });
-    if (!fromBalance || fromBalance.quantity < input.quantity) {
+    if (!fromBalance || fromBalance.goodQty < input.quantity) {
       throw new ApiError(
-        `Insufficient stock at ${fromLocation}. Available: ${fromBalance?.quantity ?? 0}.`,
+        `Insufficient stock at ${fromLocation}. Available: ${fromBalance?.goodQty ?? 0}.`,
         400,
       );
     }
 
     await tx.inventoryStockBalance.update({
       where: { id: fromBalance.id },
-      data: { quantity: fromBalance.quantity - input.quantity, updatedAt: ts },
+      data: { goodQty: fromBalance.goodQty - input.quantity, updatedAt: ts },
     });
 
     const toBalance = await tx.inventoryStockBalance.findUnique({
@@ -917,7 +920,7 @@ export async function recordQuantityTransfer(
     if (toBalance) {
       await tx.inventoryStockBalance.update({
         where: { id: toBalance.id },
-        data: { quantity: toBalance.quantity + input.quantity, updatedAt: ts },
+        data: { goodQty: toBalance.goodQty + input.quantity, updatedAt: ts },
       });
     } else {
       await tx.inventoryStockBalance.create({
@@ -925,7 +928,10 @@ export async function recordQuantityTransfer(
           id: newStockBalanceId(),
           itemTypeId: itemType.id,
           location: toLocation,
-          quantity: input.quantity,
+          goodQty: input.quantity,
+          missingQty: 0,
+          damagedQty: 0,
+          outQty: 0,
           updatedAt: ts,
         },
       });
@@ -984,7 +990,7 @@ export async function recordInventoryAdjustment(
     const balance = await tx.inventoryStockBalance.findUnique({
       where: { itemTypeId_location: { itemTypeId: itemType.id, location } },
     });
-    const current = balance?.quantity ?? 0;
+    const current = balance?.goodQty ?? 0;
     const next = current + input.adjustmentQty;
     if (next < 0) {
       throw new ApiError(`Adjustment would make stock negative. Current: ${current}.`, 400);
@@ -993,7 +999,7 @@ export async function recordInventoryAdjustment(
     if (balance) {
       await tx.inventoryStockBalance.update({
         where: { id: balance.id },
-        data: { quantity: next, updatedAt: ts },
+        data: { goodQty: next, updatedAt: ts },
       });
     } else if (input.adjustmentQty > 0) {
       await tx.inventoryStockBalance.create({
@@ -1001,7 +1007,10 @@ export async function recordInventoryAdjustment(
           id: newStockBalanceId(),
           itemTypeId: itemType.id,
           location,
-          quantity: input.adjustmentQty,
+          goodQty: input.adjustmentQty,
+          missingQty: 0,
+          damagedQty: 0,
+          outQty: 0,
           updatedAt: ts,
         },
       });

@@ -11,7 +11,11 @@ import type {
   InventoryItem,
   InventoryItemType,
   InventoryQuantityMovement,
+  InventoryAdjustment,
+  InventoryCheckout,
   InventoryStockBalance,
+  InventoryStockCount,
+  InventoryStockCountLine,
   InventoryTransaction,
   KitchenPurchase,
   KitchenStock,
@@ -97,6 +101,9 @@ export interface AppStateDto {
   inventoryItemTypes: ReturnType<typeof mapInventoryItemType>[];
   inventoryStockBalances: ReturnType<typeof mapInventoryStockBalance>[];
   inventoryQuantityMovements: ReturnType<typeof mapInventoryQuantityMovement>[];
+  inventoryStockCounts: ReturnType<typeof mapInventoryStockCount>[];
+  inventoryAdjustments: ReturnType<typeof mapInventoryAdjustment>[];
+  inventoryCheckouts: ReturnType<typeof mapInventoryCheckout>[];
   eventInventoryLines: ReturnType<typeof mapEventInventoryLine>[];
   kitchenPurchases: ReturnType<typeof mapKitchenPurchase>[];
   kitchenStock: ReturnType<typeof mapKitchenStock>[];
@@ -331,8 +338,92 @@ export function mapInventoryStockBalance(b: InventoryStockBalance) {
     id: b.id,
     itemTypeId: b.itemTypeId,
     location: b.location,
-    quantity: b.quantity,
+    goodQty: b.goodQty,
+    missingQty: b.missingQty,
+    damagedQty: b.damagedQty,
+    outQty: b.outQty,
+    quantity: b.goodQty,
     updatedAt: b.updatedAt,
+  };
+}
+
+export function mapInventoryStockCountLine(
+  line: InventoryStockCountLine & { itemType?: InventoryItemType },
+) {
+  return {
+    id: line.id,
+    stockCountId: line.stockCountId,
+    itemTypeId: line.itemTypeId,
+    itemName: line.itemName,
+    systemGoodQty: line.systemGoodQty,
+    actualGoodQty: line.actualGoodQty,
+    missingQty: line.missingQty,
+    surplusQty: line.surplusQty,
+    remarks: line.remarks ?? undefined,
+  };
+}
+
+export function mapInventoryStockCount(
+  count: InventoryStockCount & {
+    lines?: (InventoryStockCountLine & { itemType?: InventoryItemType })[];
+  },
+) {
+  return {
+    id: count.id,
+    countedAt: count.countedAt,
+    countedBy: count.countedBy,
+    notes: count.notes ?? undefined,
+    status: count.status,
+    createdAt: count.createdAt,
+    lines: count.lines?.map(mapInventoryStockCountLine),
+  };
+}
+
+export function mapInventoryAdjustment(
+  adj: InventoryAdjustment & { itemType?: InventoryItemType },
+) {
+  return {
+    id: adj.id,
+    itemTypeId: adj.itemTypeId,
+    itemName: adj.itemName,
+    type: adj.type,
+    quantity: adj.quantity,
+    remarks: adj.remarks,
+    adjustedBy: adj.adjustedBy,
+    adjustedAt: adj.adjustedAt,
+    createdAt: adj.createdAt,
+  };
+}
+
+export function mapInventoryCheckout(
+  checkout: InventoryCheckout & { itemType?: InventoryItemType },
+) {
+  const outstanding =
+    checkout.issuedQty - checkout.returnedQty - checkout.missingQty - checkout.damagedQty;
+  return {
+    id: checkout.id,
+    itemTypeId: checkout.itemTypeId,
+    itemName: checkout.itemName,
+    issuedTo: checkout.issuedTo,
+    issuedQty: checkout.issuedQty,
+    issuedAt: checkout.issuedAt,
+    purpose: checkout.purpose,
+    expectedReturnAt: checkout.expectedReturnAt ?? undefined,
+    returnedQty: checkout.returnedQty,
+    missingQty: checkout.missingQty,
+    damagedQty: checkout.damagedQty,
+    returnedAt: checkout.returnedAt ?? undefined,
+    returnedBy: checkout.returnedBy ?? undefined,
+    returnRemarks: checkout.returnRemarks ?? undefined,
+    status: checkout.status,
+    notes: checkout.notes ?? undefined,
+    createdBy: checkout.createdBy,
+    createdAt: checkout.createdAt,
+    updatedAt: checkout.updatedAt,
+    outstanding,
+    isComplete:
+      checkout.status === 'COMPLETED' &&
+      checkout.returnedQty + checkout.missingQty + checkout.damagedQty === checkout.issuedQty,
   };
 }
 

@@ -29,6 +29,9 @@ import type {
   InventoryItemType,
   InventoryStockBalance,
   InventoryQuantityMovement,
+  InventoryStockCount,
+  InventoryAdjustment,
+  InventoryCheckout,
   EventInventoryLine,
   InventoryMasterRow,
   KitchenPurchase,
@@ -118,6 +121,9 @@ interface AppState {
   inventoryItemTypes: InventoryItemType[];
   inventoryStockBalances: InventoryStockBalance[];
   inventoryQuantityMovements: InventoryQuantityMovement[];
+  inventoryStockCounts: InventoryStockCount[];
+  inventoryAdjustments: InventoryAdjustment[];
+  inventoryCheckouts: InventoryCheckout[];
   eventInventoryLines: EventInventoryLine[];
   kitchenPurchases: KitchenPurchase[];
   kitchenStock: KitchenStock[];
@@ -231,6 +237,46 @@ interface AppContextType extends AppState {
     repairCost?: number;
   }) => Promise<InventoryItem>;
   getInventoryMaster: () => Promise<InventoryMasterRow[]>;
+  addInventoryStock: (data: {
+    itemName?: string;
+    category?: string;
+    quantity: number;
+    unit?: string;
+    notes?: string;
+    supplier?: string;
+    purchaseReference?: string;
+    itemTypeId?: string;
+  }) => Promise<{ itemTypeId: string; quantity: number }>;
+  finalizeStockCount: (data: {
+    lines: Array<{ itemTypeId: string; actualGoodQty: number; remarks?: string }>;
+    notes?: string;
+    countedAt?: string;
+  }) => Promise<InventoryStockCount>;
+  recordMissingOrDamaged: (data: {
+    itemTypeId: string;
+    type: 'MISSING' | 'DAMAGED';
+    quantity: number;
+    remarks: string;
+  }) => Promise<InventoryAdjustment>;
+  createOutsideCheckout: (data: {
+    itemTypeId: string;
+    issuedTo: string;
+    issuedQty: number;
+    purpose: string;
+    expectedReturnAt?: string;
+    notes?: string;
+  }) => Promise<InventoryCheckout>;
+  returnOutsideCheckout: (
+    checkoutId: string,
+    data: {
+      returnedQty: number;
+      missingQty?: number;
+      damagedQty?: number;
+      returnRemarks?: string;
+      returnedBy?: string;
+    },
+  ) => Promise<InventoryCheckout>;
+  getQuantityInventoryReports: () => Promise<Record<string, unknown>>;
   upsertEventInventoryRequirement: (bookingId: string, data: { itemTypeId: string; requiredQty: number; notes?: string }) => Promise<EventInventoryLine>;
   reserveEventInventory: (lineId: string, data: { quantity: number; serialNumbers?: string[]; location?: string }) => Promise<EventInventoryLine>;
   issueEventInventory: (lineId: string, data: { quantity: number; serialNumbers?: string[]; issuedTo: string; notes?: string }) => Promise<EventInventoryLine>;
@@ -318,6 +364,9 @@ const defaultState: AppState = {
   inventoryItemTypes: [],
   inventoryStockBalances: [],
   inventoryQuantityMovements: [],
+  inventoryStockCounts: [],
+  inventoryAdjustments: [],
+  inventoryCheckouts: [],
   eventInventoryLines: [],
   kitchenPurchases: initialKitchenPurchases,
   kitchenStock: initialKitchenStock,
@@ -344,6 +393,9 @@ const emptyApiState: AppState = {
   inventoryItemTypes: [],
   inventoryStockBalances: [],
   inventoryQuantityMovements: [],
+  inventoryStockCounts: [],
+  inventoryAdjustments: [],
+  inventoryCheckouts: [],
   eventInventoryLines: [],
   kitchenPurchases: [],
   kitchenStock: [],
@@ -428,6 +480,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         inventoryItemTypes: data.inventoryItemTypes ?? [],
         inventoryStockBalances: data.inventoryStockBalances ?? [],
         inventoryQuantityMovements: data.inventoryQuantityMovements ?? [],
+        inventoryStockCounts: data.inventoryStockCounts ?? [],
+        inventoryAdjustments: data.inventoryAdjustments ?? [],
+        inventoryCheckouts: data.inventoryCheckouts ?? [],
         eventInventoryLines: data.eventInventoryLines ?? [],
         kitchenPurchases: data.kitchenPurchases ?? [],
         kitchenStock: data.kitchenStock ?? [],
@@ -2293,6 +2348,66 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [state.currentUser.name, state.kitchenStock, clearActionError, refreshFromApi],
   );
 
+  const addInventoryStockFn = useCallback(
+    async (data: Parameters<AppContextType['addInventoryStock']>[0]) => {
+      if (!USE_API) throw new Error('Inventory stock requires API mode.');
+      clearActionError();
+      const result = await api.addInventoryStock(data);
+      await refreshFromApi();
+      return result;
+    },
+    [clearActionError, refreshFromApi],
+  );
+
+  const finalizeStockCountFn = useCallback(
+    async (data: Parameters<AppContextType['finalizeStockCount']>[0]) => {
+      if (!USE_API) throw new Error('Stock count requires API mode.');
+      clearActionError();
+      const result = await api.finalizeStockCount(data);
+      await refreshFromApi();
+      return result;
+    },
+    [clearActionError, refreshFromApi],
+  );
+
+  const recordMissingOrDamagedFn = useCallback(
+    async (data: Parameters<AppContextType['recordMissingOrDamaged']>[0]) => {
+      if (!USE_API) throw new Error('Adjustments require API mode.');
+      clearActionError();
+      const result = await api.recordMissingOrDamaged(data);
+      await refreshFromApi();
+      return result;
+    },
+    [clearActionError, refreshFromApi],
+  );
+
+  const createOutsideCheckoutFn = useCallback(
+    async (data: Parameters<AppContextType['createOutsideCheckout']>[0]) => {
+      if (!USE_API) throw new Error('Checkout requires API mode.');
+      clearActionError();
+      const result = await api.createOutsideCheckout(data);
+      await refreshFromApi();
+      return result;
+    },
+    [clearActionError, refreshFromApi],
+  );
+
+  const returnOutsideCheckoutFn = useCallback(
+    async (checkoutId: string, data: Parameters<AppContextType['returnOutsideCheckout']>[1]) => {
+      if (!USE_API) throw new Error('Checkout return requires API mode.');
+      clearActionError();
+      const result = await api.returnOutsideCheckout(checkoutId, data);
+      await refreshFromApi();
+      return result;
+    },
+    [clearActionError, refreshFromApi],
+  );
+
+  const getQuantityInventoryReportsFn = useCallback(async () => {
+    if (!USE_API) return {};
+    return api.getQuantityInventoryReports();
+  }, []);
+
   const updateKitchenStockThresholdFn = useCallback(
     async (item: string, minThreshold: number) => {
       if (USE_API) {
@@ -2357,6 +2472,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     updateInventoryItemStatus: updateInventoryItemStatusFn,
     searchInventoryBySerial: searchInventoryBySerialFn,
     getInventoryMaster: getInventoryMasterFn,
+    addInventoryStock: addInventoryStockFn,
+    finalizeStockCount: finalizeStockCountFn,
+    recordMissingOrDamaged: recordMissingOrDamagedFn,
+    createOutsideCheckout: createOutsideCheckoutFn,
+    returnOutsideCheckout: returnOutsideCheckoutFn,
+    getQuantityInventoryReports: getQuantityInventoryReportsFn,
     upsertEventInventoryRequirement: upsertEventInventoryRequirementFn,
     reserveEventInventory: reserveEventInventoryFn,
     issueEventInventory: issueEventInventoryFn,

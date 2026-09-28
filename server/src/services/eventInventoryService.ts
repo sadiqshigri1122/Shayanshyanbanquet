@@ -318,17 +318,17 @@ export async function issueEventInventory(
     });
   } else {
     const balances = await prisma.inventoryStockBalance.findMany({ where: { itemTypeId: line.itemTypeId } });
-    const totalStock = balances.reduce((s, b) => s + b.quantity, 0);
+    const totalStock = balances.reduce((s, b) => s + b.goodQty, 0);
     if (totalStock < input.quantity) throw new ApiError('Insufficient stock to issue.', 400);
 
     await prisma.$transaction(async (tx) => {
       let remaining = input.quantity;
-      for (const balance of balances.sort((a, b) => b.quantity - a.quantity)) {
+      for (const balance of balances.sort((a, b) => b.goodQty - a.goodQty)) {
         if (remaining <= 0) break;
-        const take = Math.min(balance.quantity, remaining);
+        const take = Math.min(balance.goodQty, remaining);
         await tx.inventoryStockBalance.update({
           where: { id: balance.id },
-          data: { quantity: balance.quantity - take, updatedAt: ts },
+          data: { goodQty: balance.goodQty - take, updatedAt: ts },
         });
         remaining -= take;
       }
@@ -573,7 +573,7 @@ export async function returnEventInventory(
       if (balance) {
         await tx.inventoryStockBalance.update({
           where: { id: balance.id },
-          data: { quantity: balance.quantity + input.returnedQty, updatedAt: ts },
+          data: { goodQty: balance.goodQty + input.returnedQty, updatedAt: ts },
         });
       } else {
         await tx.inventoryStockBalance.create({
@@ -581,7 +581,10 @@ export async function returnEventInventory(
             id: `isb${Date.now()}${Math.random().toString(36).slice(2, 5)}`,
             itemTypeId: line.itemTypeId,
             location: toLocation,
-            quantity: input.returnedQty,
+            goodQty: input.returnedQty,
+            missingQty: 0,
+            damagedQty: 0,
+            outQty: 0,
             updatedAt: ts,
           },
         });

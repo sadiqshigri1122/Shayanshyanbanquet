@@ -227,7 +227,7 @@ model InventoryItemType {
   name            String
   category        String
   unit            String                     @default("unit")
-  serialTracking  Boolean                    @default(true)
+  serialTracking  Boolean                    @default(false)
   defaultLocation String?
   notes           String?
   createdBy       String
@@ -237,6 +237,9 @@ model InventoryItemType {
   stockBalances   InventoryStockBalance[]
   quantityMoves   InventoryQuantityMovement[]
   eventLines      EventInventoryLine[]
+  stockCountLines InventoryStockCountLine[]
+  adjustments     InventoryAdjustment[]
+  checkouts       InventoryCheckout[]
 
   @@unique([name, category])
   @@index([category])
@@ -303,12 +306,90 @@ model InventoryStockBalance {
   id         String            @id
   itemTypeId String
   itemType   InventoryItemType @relation(fields: [itemTypeId], references: [id], onDelete: Cascade)
-  location   String
-  quantity   Int               @default(0)
+  location   String            @default("Store Room")
+  goodQty    Int               @default(0)
+  missingQty Int               @default(0)
+  damagedQty Int               @default(0)
+  outQty     Int               @default(0)
   updatedAt  String
 
   @@unique([itemTypeId, location])
   @@index([location])
+}
+
+model InventoryStockCount {
+  id        String                    @id
+  countedAt String
+  countedBy String
+  notes     String?
+  status    String                    @default("FINALIZED")
+  createdAt String
+  lines     InventoryStockCountLine[]
+
+  @@index([countedAt])
+  @@index([countedBy])
+}
+
+model InventoryStockCountLine {
+  id            String            @id
+  stockCountId  String
+  stockCount    InventoryStockCount @relation(fields: [stockCountId], references: [id], onDelete: Cascade)
+  itemTypeId    String
+  itemType      InventoryItemType @relation(fields: [itemTypeId], references: [id], onDelete: Restrict)
+  itemName      String
+  systemGoodQty Int
+  actualGoodQty Int
+  missingQty    Int               @default(0)
+  surplusQty    Int               @default(0)
+  remarks       String?
+
+  @@index([stockCountId])
+  @@index([itemTypeId])
+}
+
+model InventoryAdjustment {
+  id         String            @id
+  itemTypeId String
+  itemType   InventoryItemType @relation(fields: [itemTypeId], references: [id], onDelete: Restrict)
+  itemName   String
+  type       String
+  quantity   Int
+  remarks    String
+  adjustedBy String
+  adjustedAt String
+  createdAt  String
+
+  @@index([itemTypeId])
+  @@index([adjustedAt])
+  @@index([type])
+}
+
+model InventoryCheckout {
+  id               String            @id
+  itemTypeId       String
+  itemType         InventoryItemType @relation(fields: [itemTypeId], references: [id], onDelete: Restrict)
+  itemName         String
+  issuedTo         String
+  issuedQty        Int
+  issuedAt         String
+  purpose          String
+  expectedReturnAt String?
+  returnedQty      Int               @default(0)
+  missingQty       Int               @default(0)
+  damagedQty       Int               @default(0)
+  returnedAt       String?
+  returnedBy       String?
+  returnRemarks    String?
+  status           String            @default("OPEN")
+  notes            String?
+  createdBy        String
+  createdAt        String
+  updatedAt        String
+
+  @@index([itemTypeId])
+  @@index([status])
+  @@index([issuedAt])
+  @@index([expectedReturnAt])
 }
 
 model InventoryQuantityMovement {

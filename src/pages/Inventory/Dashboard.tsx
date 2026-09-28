@@ -1,62 +1,84 @@
 import { Link } from 'react-router-dom';
-import { Package, ArrowDownCircle, ArrowUpCircle, ShoppingCart, AlertTriangle } from 'lucide-react';
+import {
+  Package, ClipboardCheck, AlertTriangle, ArrowUpCircle, ArrowDownCircle, ShoppingCart, PlusCircle,
+} from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useDashboard } from '../../context/DashboardContext';
-import { buildInventorySummaries, formatInventoryDateTime, getOverdueOutItems, INVENTORY_OVERDUE_DAYS, normalizeInventoryStatus } from '../../utils/inventoryUtils';
+import { formatInventoryDateTime } from '../../utils/inventoryUtils';
 import { formatCurrency } from '../../utils/bookingUtils';
-import InventoryStatusBadge from '../../components/InventoryStatusBadge';
 
 export default function InventoryDashboard() {
-  const { inventoryItems, inventoryTransactions, kitchenPurchases } = useApp();
+  const {
+    inventoryItemTypes,
+    inventoryStockBalances,
+    inventoryCheckouts,
+    inventoryAdjustments,
+    inventoryQuantityMovements,
+    kitchenPurchases,
+  } = useApp();
   const { path } = useDashboard();
 
-  const normalizedItems = inventoryItems.map((i) => ({ ...i, status: normalizeInventoryStatus(i.status) }));
-  const summaries = buildInventorySummaries(normalizedItems);
-  const itemsAvailable = normalizedItems.filter((i) => i.status === 'AVAILABLE').length;
-  const itemsReserved = normalizedItems.filter((i) => i.status === 'RESERVED').length;
-  const itemsMissing = normalizedItems.filter((i) => i.status === 'MISSING').length;
-  const itemsDamaged = normalizedItems.filter((i) => i.status === 'DAMAGED').length;
-  const itemsOut = normalizedItems.filter((i) => i.status === 'OUT').length;
-  const itemsMaintenance = normalizedItems.filter((i) => i.status === 'UNDER_MAINTENANCE').length;
+  const qtyTypes = inventoryItemTypes.filter((t) => !t.serialTracking);
+
+  const totals = inventoryStockBalances.reduce(
+    (acc, b) => ({
+      good: acc.good + (b.goodQty ?? b.quantity ?? 0),
+      missing: acc.missing + (b.missingQty ?? 0),
+      damaged: acc.damaged + (b.damagedQty ?? 0),
+      out: acc.out + (b.outQty ?? 0),
+    }),
+    { good: 0, missing: 0, damaged: 0, out: 0 },
+  );
+  const totalOwned = totals.good + totals.missing + totals.damaged + totals.out;
+
+  const openCheckouts = inventoryCheckouts.filter((c) => c.status === 'OPEN');
+  const overdueCheckouts = openCheckouts.filter(
+    (c) => c.expectedReturnAt && c.expectedReturnAt < new Date().toISOString(),
+  );
+
   const monthStart = new Date().toISOString().slice(0, 7);
   const purchasesThisMonth = kitchenPurchases.filter((p) => p.purchaseDate.startsWith(monthStart));
 
-  const recentTx = [...inventoryTransactions]
-    .sort((a, b) => b.transactionDate.localeCompare(a.transactionDate))
-    .slice(0, 5);
-  const recentPurchases = [...kitchenPurchases]
-    .sort((a, b) => b.purchaseDate.localeCompare(a.purchaseDate))
-    .slice(0, 5);
-  const overdueItems = getOverdueOutItems(normalizedItems, inventoryTransactions);
+  const recentMovements = [...inventoryQuantityMovements]
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .slice(0, 6);
+
+  const quickLinks = [
+    { label: 'Add Inventory', icon: PlusCircle, path: path('/add-item') },
+    { label: 'Stock Count', icon: ClipboardCheck, path: path('/stock-count') },
+    { label: 'Missing / Damaged', icon: AlertTriangle, path: path('/adjust') },
+    { label: 'Check Out', icon: ArrowUpCircle, path: path('/checkout-out') },
+    { label: 'Check In', icon: ArrowDownCircle, path: path('/checkout-return') },
+  ];
 
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
         <h1 className="text-2xl font-bold text-primary">Inventory Dashboard</h1>
-        <p className="text-muted text-sm mt-0.5">Know what you have, where it is, and who took it</p>
+        <p className="text-muted text-sm mt-0.5">Quantity-based inventory — what you have, what is out, and what needs attention</p>
       </div>
 
-      {overdueItems.length > 0 && (
+      {overdueCheckouts.length > 0 && (
         <div className="card border-l-4 border-l-warning">
-          <p className="font-semibold text-warning">{overdueItems.length} item(s) not returned ({INVENTORY_OVERDUE_DAYS}+ days OUT)</p>
+          <p className="font-semibold text-warning">{overdueCheckouts.length} overdue checkout(s)</p>
           <ul className="text-sm mt-2 space-y-1">
-            {overdueItems.slice(0, 5).map((i) => (
-              <li key={i.id}>{i.serialNumber} — {i.itemName} → <strong>{i.currentHolder}</strong> ({i.daysOut} days)</li>
+            {overdueCheckouts.slice(0, 5).map((c) => (
+              <li key={c.id}>{c.itemName} × {c.outstanding} → {c.issuedTo}</li>
             ))}
           </ul>
-          <Link to={path('/items')} className="text-xs text-secondary font-semibold mt-2 inline-block">View all items</Link>
+          <Link to={path('/checkout-return')} className="text-xs text-secondary font-semibold mt-2 inline-block">
+            Process returns
+          </Link>
         </div>
       )}
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         {[
-          { label: 'Total Items', value: inventoryItems.length, icon: Package, link: path('/master') },
-          { label: 'Available', value: itemsAvailable, icon: ArrowDownCircle },
-          { label: 'Reserved', value: itemsReserved, icon: Package },
-          { label: 'Issued', value: itemsOut, icon: ArrowUpCircle },
-          { label: 'Missing', value: itemsMissing, icon: AlertTriangle, warn: itemsMissing > 0 },
-          { label: 'Damaged', value: itemsDamaged, icon: AlertTriangle, warn: itemsDamaged > 0 },
-          { label: 'Maintenance', value: itemsMaintenance, icon: AlertTriangle },
+          { label: 'Total Owned', value: totalOwned, icon: Package, link: path('/master') },
+          { label: 'Good (In stock)', value: totals.good, icon: Package },
+          { label: 'Out (Outside)', value: totals.out, icon: ArrowUpCircle, warn: totals.out > 0 },
+          { label: 'Missing', value: totals.missing, icon: AlertTriangle, warn: totals.missing > 0 },
+          { label: 'Damaged', value: totals.damaged, icon: AlertTriangle, warn: totals.damaged > 0 },
         ].map((card) => {
           const Icon = card.icon;
           const inner = (
@@ -71,93 +93,81 @@ export default function InventoryDashboard() {
             </div>
           );
           return card.link ? (
-            <Link key={card.label} to={card.link} className="block hover:opacity-90">
-              {inner}
-            </Link>
+            <Link key={card.label} to={card.link} className="block hover:opacity-90">{inner}</Link>
           ) : (
             <div key={card.label}>{inner}</div>
           );
         })}
       </div>
 
-      {summaries.length > 0 && (
-        <div className="card">
-          <h2 className="font-semibold text-primary mb-3">Inventory Summary</h2>
-          <div className="space-y-3">
-            {summaries.slice(0, 5).map((s) => (
-              <div key={s.itemName} className="text-sm border-b border-surface-alt pb-2 last:border-0">
-                <p className="font-semibold">{s.itemName} — Total: {s.total}</p>
-                <p className="text-muted">
-                  Available: {s.available} · Missing: {s.missing} · Damaged: {s.damaged}
-                  {Object.keys(s.byLocation).length > 0 && (
-                    <> · {Object.entries(s.byLocation).map(([loc, n]) => `${loc}: ${n}`).join(', ')}</>
-                  )}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        {quickLinks.map(({ label, icon: Icon, path: to }) => (
+          <Link key={to} to={to} className="card hover:shadow-md transition-shadow flex items-center gap-2 py-3">
+            <Icon size={18} className="text-secondary shrink-0" />
+            <span className="text-sm font-medium text-primary">{label}</span>
+          </Link>
+        ))}
+      </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
         <div className="card">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-primary">Recent Inventory Activity</h2>
-            <Link to={path('/history')} className="text-xs text-secondary font-semibold">View all</Link>
-          </div>
-          {recentTx.length === 0 ? (
-            <p className="text-sm text-muted">No transactions yet.</p>
+          <h2 className="font-semibold text-primary mb-3">Open checkouts ({openCheckouts.length})</h2>
+          {openCheckouts.length === 0 ? (
+            <p className="text-sm text-muted">No items currently checked out.</p>
           ) : (
-            <ul className="space-y-3">
-              {recentTx.map((tx) => {
-                const item = inventoryItems.find((i) => i.id === tx.inventoryItemId);
-                return (
-                  <li key={tx.id} className="text-sm border-b border-surface-alt pb-2 last:border-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-muted">{formatInventoryDateTime(tx.transactionDate).split(',')[0]}</span>
-                      <span className="font-mono text-xs">{tx.serialNumber}</span>
-                      <span>{item?.itemName ?? '—'}</span>
-                      <InventoryStatusBadge status={tx.action} />
-                      <span className="text-muted">{tx.person}</span>
-                    </div>
-                    <p className="text-xs text-muted mt-0.5">Entered by {tx.createdBy}</p>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
-
-        <div className="card">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-primary">Recent Kitchen Purchases</h2>
-            <Link to={path('/kitchen/history')} className="text-xs text-secondary font-semibold">View all</Link>
-          </div>
-          <p className="text-xs text-muted mb-3">
-            This month: {purchasesThisMonth.length} purchases · {formatCurrency(purchasesThisMonth.reduce((s, p) => s + p.totalCost, 0))}
-          </p>
-          {recentPurchases.length === 0 ? (
-            <p className="text-sm text-muted">No purchases yet.</p>
-          ) : (
-            <ul className="space-y-3">
-              {recentPurchases.map((p) => (
-                <li key={p.id} className="text-sm flex flex-wrap items-center gap-2 border-b border-surface-alt pb-2 last:border-0">
-                  <span className="text-muted">{p.purchaseDate}</span>
-                  <span className="font-medium">{p.item}</span>
-                  <span>{p.quantity} {p.unit}</span>
-                  <span className="text-secondary font-semibold">{formatCurrency(p.totalCost)}</span>
-                  <span className="text-muted">{p.purchasedBy}</span>
+            <ul className="text-sm space-y-2">
+              {openCheckouts.slice(0, 5).map((c) => (
+                <li key={c.id} className="flex justify-between gap-2">
+                  <span>{c.itemName} × {c.outstanding} → <strong>{c.issuedTo}</strong></span>
+                  <span className="text-muted text-xs shrink-0">{formatInventoryDateTime(c.issuedAt)}</span>
                 </li>
               ))}
             </ul>
           )}
-          <div className="flex flex-wrap gap-2 mt-4">
-            <Link to={path('/kitchen/purchases')} className="btn-primary !px-4 !py-2 !text-sm inline-flex items-center gap-2">
-              <ShoppingCart size={16} /> New Purchase
-            </Link>
-            <Link to={path('/bulk-add')} className="btn-secondary !px-4 !py-2 !text-sm">Bulk Add Items</Link>
-          </div>
         </div>
+
+        <div className="card">
+          <h2 className="font-semibold text-primary mb-3">Recent adjustments</h2>
+          {inventoryAdjustments.length === 0 ? (
+            <p className="text-sm text-muted">No missing or damaged records yet.</p>
+          ) : (
+            <ul className="text-sm space-y-2">
+              {inventoryAdjustments.slice(0, 5).map((a) => (
+                <li key={a.id}>
+                  <span className={a.type === 'MISSING' ? 'text-danger' : 'text-warning'}>{a.type}</span>
+                  {' '}{a.quantity} × {a.itemName}
+                  <p className="text-xs text-muted truncate">{a.remarks}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+
+      <div className="card">
+        <h2 className="font-semibold text-primary mb-3">Recent activity</h2>
+        {recentMovements.length === 0 ? (
+          <p className="text-sm text-muted">No movements yet.</p>
+        ) : (
+          <ul className="text-sm space-y-2">
+            {recentMovements.map((m) => (
+              <li key={m.id} className="flex justify-between gap-2">
+                <span><strong>{m.action}</strong> — {m.quantity} ({m.reason})</span>
+                <span className="text-muted text-xs shrink-0">{formatInventoryDateTime(m.createdAt)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="card">
+        <h2 className="font-semibold text-primary mb-2 flex items-center gap-2">
+          <ShoppingCart size={18} /> Kitchen — {purchasesThisMonth.length} purchases this month
+        </h2>
+        <p className="text-sm text-muted">
+          Total: {formatCurrency(purchasesThisMonth.reduce((s, p) => s + p.totalCost, 0))}
+        </p>
+        <p className="text-xs text-muted mt-1">{qtyTypes.length} item type(s) in equipment inventory</p>
       </div>
     </div>
   );

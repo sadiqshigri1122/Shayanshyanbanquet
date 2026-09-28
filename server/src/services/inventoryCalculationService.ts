@@ -142,18 +142,19 @@ export async function computeSerializedMasterRows(): Promise<InventoryMasterRow[
 export async function computeQuantityMasterRows(): Promise<InventoryMasterRow[]> {
   const types = await prisma.inventoryItemType.findMany({
     where: { serialTracking: false },
-    include: { stockBalances: true, eventLines: true },
+    include: { stockBalances: true },
     orderBy: { name: 'asc' },
   });
 
   return types.map((type) => {
-    const totalQty = type.stockBalances.reduce((sum, b) => sum + b.quantity, 0);
-    const reservedQty = type.eventLines.reduce((sum, l) => sum + l.reservedQty - l.issuedQty, 0);
-    const issuedQty = type.eventLines.reduce((sum, l) => sum + l.issuedQty - l.returnedQty, 0);
-    const missingQty = type.eventLines.reduce((sum, l) => sum + l.missingQty, 0);
-    const damagedQty = type.eventLines.reduce((sum, l) => sum + l.damagedQty, 0);
-    const available = Math.max(0, totalQty - reservedQty - issuedQty);
-    const locations = type.stockBalances.filter((b) => b.quantity > 0).map((b) => b.location);
+    const goodQty = type.stockBalances.reduce((sum, b) => sum + b.goodQty, 0);
+    const missingQty = type.stockBalances.reduce((sum, b) => sum + b.missingQty, 0);
+    const damagedQty = type.stockBalances.reduce((sum, b) => sum + b.damagedQty, 0);
+    const outQty = type.stockBalances.reduce((sum, b) => sum + b.outQty, 0);
+    const total = goodQty + missingQty + damagedQty + outQty;
+    const locations = type.stockBalances
+      .filter((b) => b.goodQty + b.missingQty + b.damagedQty + b.outQty > 0)
+      .map((b) => b.location);
 
     return {
       itemTypeId: type.id,
@@ -161,10 +162,10 @@ export async function computeQuantityMasterRows(): Promise<InventoryMasterRow[]>
       category: type.category,
       unit: type.unit,
       serialTracking: false,
-      total: totalQty,
-      available,
-      reserved: Math.max(0, reservedQty),
-      issued: Math.max(0, issuedQty),
+      total,
+      available: goodQty,
+      reserved: 0,
+      issued: outQty,
       missing: missingQty,
       damaged: damagedQty,
       underMaintenance: 0,
@@ -192,7 +193,7 @@ export async function getLocationInventory(location?: string): Promise<LocationI
       include: { itemType: true },
     }),
     prisma.inventoryStockBalance.findMany({
-      where: location ? { location: location.trim(), quantity: { gt: 0 } } : { quantity: { gt: 0 } },
+      where: location ? { location: location.trim() } : undefined,
       include: { itemType: true },
     }),
   ]);
@@ -224,16 +225,18 @@ export async function getLocationInventory(location?: string): Promise<LocationI
   }
 
   for (const balance of balances) {
+    const total = balance.goodQty + balance.missingQty + balance.damagedQty + balance.outQty;
+    if (total <= 0) continue;
     rows.push({
       location: balance.location,
       itemTypeId: balance.itemTypeId,
       itemName: balance.itemType.name,
       category: balance.itemType.category,
       serialTracking: false,
-      quantity: balance.quantity,
-      available: balance.quantity,
+      quantity: total,
+      available: balance.goodQty,
       reserved: 0,
-      issued: 0,
+      issued: balance.outQty,
     });
   }
 
@@ -256,17 +259,11 @@ export async function countAvailableQuantity(itemTypeId: string, location?: stri
     const balance = await prisma.inventoryStockBalance.findUnique({
       where: { itemTypeId_location: { itemTypeId, location: location.trim() } },
     });
-    return balance?.quantity ?? 0;
+    return balance?.goodQty ?? 0;
   }
 
   const balances = await prisma.inventoryStockBalance.findMany({ where: { itemTypeId } });
-  const totalStock = balances.reduce((sum, b) => sum + b.quantity, 0);
-
-  const lines = await prisma.eventInventoryLine.findMany({ where: { itemTypeId } });
-  const reserved = lines.reduce((sum, l) => sum + Math.max(0, l.reservedQty - l.issuedQty), 0);
-  const issued = lines.reduce((sum, l) => sum + Math.max(0, l.issuedQty - l.returnedQty), 0);
-
-  return Math.max(0, totalStock - reserved - issued);
+  return balances.reduce((sum, b) => sum + b.goodQty, 0);
 }
 
 export async function getRecentMovements(limit = 20) {

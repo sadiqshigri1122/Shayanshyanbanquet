@@ -54,12 +54,14 @@ export default function InventoryMaster() {
 
   const displayRows = rows.length > 0 ? rows : fallbackRows;
 
-  const filtered = displayRows.filter((row) => {
-    const q = search.trim().toLowerCase();
-    if (q && !row.itemName.toLowerCase().includes(q) && !row.category.toLowerCase().includes(q)) return false;
-    if (category && row.category !== category) return false;
-    return true;
-  });
+  const filtered = displayRows
+    .filter((row) => !row.serialTracking)
+    .filter((row) => {
+      const q = search.trim().toLowerCase();
+      if (q && !row.itemName.toLowerCase().includes(q) && !row.category.toLowerCase().includes(q)) return false;
+      if (category && row.category !== category) return false;
+      return true;
+    });
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -67,7 +69,7 @@ export default function InventoryMaster() {
         <div>
           <h1 className="text-2xl font-bold text-primary">Inventory Master</h1>
           <p className="text-sm text-muted mt-0.5">
-            System-calculated totals — what you own, where it is, and current status breakdown
+            Good, missing, damaged, and out quantities — total owned per item type
           </p>
         </div>
         <Link to={path('/add-item')} className="btn-primary inline-flex items-center gap-2">
@@ -102,19 +104,17 @@ export default function InventoryMaster() {
               <th className="py-2 pr-3">Item</th>
               <th className="py-2 px-2">Category</th>
               <th className="py-2 px-2 text-right">Total</th>
-              <th className="py-2 px-2 text-right">Available</th>
-              <th className="py-2 px-2 text-right">Reserved</th>
-              <th className="py-2 px-2 text-right">Issued</th>
+              <th className="py-2 px-2 text-right">Good</th>
+              <th className="py-2 px-2 text-right">Out</th>
               <th className="py-2 px-2 text-right">Missing</th>
               <th className="py-2 px-2 text-right">Damaged</th>
-              <th className="py-2 px-2">Tracking</th>
-              <th className="py-2 pl-2">Locations</th>
+              <th className="py-2 pl-2">Unit</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={10} className="py-8 text-center text-muted">No inventory items found.</td>
+                <td colSpan={8} className="py-8 text-center text-muted">No inventory items found.</td>
               </tr>
             ) : (
               filtered.map((row) => (
@@ -123,15 +123,10 @@ export default function InventoryMaster() {
                   <td className="py-3 px-2 text-muted">{row.category}</td>
                   <td className="py-3 px-2 text-right font-semibold">{row.total}</td>
                   <td className="py-3 px-2 text-right text-success">{row.available}</td>
-                  <td className="py-3 px-2 text-right">{row.reserved}</td>
-                  <td className="py-3 px-2 text-right">{row.issued}</td>
+                  <td className="py-3 px-2 text-right">{row.issued || '—'}</td>
                   <td className="py-3 px-2 text-right text-danger">{row.missing || '—'}</td>
                   <td className="py-3 px-2 text-right text-warning">{row.damaged || '—'}</td>
-                  <td className="py-3 px-2 text-xs text-muted">{row.serialTracking ? 'Serial' : 'Quantity'}</td>
-                  <td className="py-3 pl-2 text-xs text-muted max-w-[200px] truncate" title={row.locations.join(', ')}>
-                    {row.locations.length ? row.locations.slice(0, 2).join(', ') : '—'}
-                    {row.locations.length > 2 ? ` +${row.locations.length - 2}` : ''}
-                  </td>
+                  <td className="py-3 pl-2 text-xs text-muted">{row.unit}</td>
                 </tr>
               ))
             )}
@@ -139,9 +134,9 @@ export default function InventoryMaster() {
         </table>
       </div>
 
-      <div className="flex gap-3 text-sm">
-        <Link to={path('/locations')} className="text-secondary font-semibold">View by location →</Link>
-        <Link to={path('/items')} className="text-secondary font-semibold">All serial assets →</Link>
+      <div className="flex gap-3 text-sm flex-wrap">
+        <Link to={path('/stock-count')} className="text-secondary font-semibold">Physical stock count →</Link>
+        <Link to={path('/checkout-return')} className="text-secondary font-semibold">Open checkouts →</Link>
       </div>
     </div>
   );

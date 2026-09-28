@@ -5,7 +5,7 @@ import {
   ChevronLeft, ChevronRight, Bell, Search, Settings, Menu,
   ClipboardList, PlusCircle, CalendarCheck,
   CheckCircle2, BarChart3, Shield, DollarSign, LogOut,
-  Package, ArrowDownCircle, ArrowUpCircle, History, ShoppingCart, Warehouse, ChefHat, ArrowRightLeft,
+  Package, ArrowDownCircle, ArrowUpCircle, History, ShoppingCart, Warehouse, ChefHat,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { DashboardProvider } from '../context/DashboardContext';
@@ -26,14 +26,12 @@ const navByRole: Record<DashboardRole, { label: string; icon: typeof LayoutDashb
   inventory: [
     { label: 'Dashboard', icon: LayoutDashboard, path: '/inventory' },
     { label: 'Inventory Master', icon: Package, path: '/inventory/master' },
-    { label: 'By Location', icon: Warehouse, path: '/inventory/locations' },
-    { label: 'All Items', icon: Package, path: '/inventory/items' },
-    { label: 'Add Item', icon: PlusCircle, path: '/inventory/add-item' },
-    { label: 'Bulk Add', icon: Package, path: '/inventory/bulk-add' },
-    { label: 'Transfer Items', icon: ArrowRightLeft, path: '/inventory/transfer' },
-    { label: 'Stock OUT', icon: ArrowUpCircle, path: '/inventory/stock-out' },
-    { label: 'Stock IN', icon: ArrowDownCircle, path: '/inventory/stock-in' },
-    { label: 'Inventory History', icon: History, path: '/inventory/history' },
+    { label: 'Add Inventory', icon: PlusCircle, path: '/inventory/add-item' },
+    { label: 'Stock Count', icon: ClipboardList, path: '/inventory/stock-count' },
+    { label: 'Missing / Damaged', icon: Package, path: '/inventory/adjust' },
+    { label: 'Check Out (Outside)', icon: ArrowUpCircle, path: '/inventory/checkout-out' },
+    { label: 'Check In (Return)', icon: ArrowDownCircle, path: '/inventory/checkout-return' },
+    { label: 'Activity History', icon: History, path: '/inventory/history' },
     { label: 'Kitchen Purchases', icon: ShoppingCart, path: '/inventory/kitchen/purchases' },
     { label: 'Purchase History', icon: ClipboardList, path: '/inventory/kitchen/history' },
     { label: 'Kitchen Stock', icon: Warehouse, path: '/inventory/kitchen/stock' },
