@@ -168,7 +168,25 @@ export default function PrintBookingSlip({ booking, onClose }: PrintBookingSlipP
                 </tr>
               ))}
 
-              {/* TOTAL / ADVANCE / BALANCE — right column like paper slip */}
+              {/* Subtotal / discount / total — matches Bill Summary on booking screen */}
+              {booking.discount > 0 && (
+                <>
+                  <tr className="border-b border-gray-800">
+                    <td colSpan={2} className="border-r border-gray-800 px-3 py-1.5 text-right font-bold">SUBTOTAL</td>
+                    <td className="px-3 py-1.5 text-right font-bold">{formatAmount(booking.subtotal)}</td>
+                  </tr>
+                  <tr className="border-b border-gray-800">
+                    <td colSpan={2} className="border-r border-gray-800 px-3 py-1.5 text-right font-bold">DISCOUNT</td>
+                    <td className="px-3 py-1.5 text-right font-bold">-{formatAmount(booking.discount)}</td>
+                  </tr>
+                </>
+              )}
+              {booking.taxAmount > 0 && (
+                <tr className="border-b border-gray-800">
+                  <td colSpan={2} className="border-r border-gray-800 px-3 py-1.5 text-right font-bold">TAX</td>
+                  <td className="px-3 py-1.5 text-right font-bold">{formatAmount(booking.taxAmount)}</td>
+                </tr>
+              )}
               <tr className="border-b border-gray-800">
                 <td colSpan={2} className="border-r border-gray-800 px-3 py-1.5 text-right font-bold">TOTAL</td>
                 <td className="px-3 py-1.5 text-right font-bold">{formatAmount(booking.grandTotal)}</td>
@@ -209,7 +227,6 @@ export default function PrintBookingSlip({ booking, onClose }: PrintBookingSlipP
         {/* System reference — screen only subtle */}
         <p className="relative z-10 mt-2 text-center text-[8px] text-gray-600 print:text-gray-500">
           Ref: {booking.bookingNumber}
-          {booking.discount > 0 && ` · Discount: Rs. ${formatAmount(booking.discount)}`}
         </p>
       </div>
     </div>
